@@ -8,8 +8,10 @@ import {
   getTopProductsData,
   getRevenueChartData,
   getRecentSales,
+  getCategoryPerformance,
+  getDeadStock,
 } from '@/lib/supabase-queries'
-import type { DashboardMetrics, SalesChartData, TopProductData, RevenueChartData, Sale } from '@/types'
+import type { DashboardMetrics, SalesChartData, TopProductData, RevenueChartData, Sale, CategoryPerformance, DeadStockItem } from '@/types'
 
 export type DateRange = '7d' | '30d' | '3m' | '6m'
 
@@ -26,6 +28,8 @@ export function useDashboardMetrics() {
   const [topProductsData, setTopProductsData] = useState<TopProductData[]>([])
   const [revenueChartData, setRevenueChartData] = useState<RevenueChartData[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
+  const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([])
+  const [deadStock, setDeadStock] = useState<DeadStockItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -35,18 +39,22 @@ export function useDashboardMetrics() {
     setLoading(true)
     setError(null)
     try {
-      const [m, sales, top, revenue, recent] = await Promise.all([
+      const [m, sales, top, revenue, recent, catPerf, dead] = await Promise.all([
         getDashboardMetrics(),
         getSalesChartData(range),
         getTopProductsData(),
         getRevenueChartData(),
         getRecentSales(5),
+        getCategoryPerformance(),
+        getDeadStock(),
       ])
       setMetrics(m)
       setSalesChartData(sales)
       setTopProductsData(top)
       setRevenueChartData(revenue)
       setRecentSales(recent)
+      setCategoryPerformance(catPerf)
+      setDeadStock(dead)
       setLastUpdated(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
@@ -81,6 +89,8 @@ export function useDashboardMetrics() {
     topProductsData,
     revenueChartData,
     recentSales,
+    categoryPerformance,
+    deadStock,
     loading,
     error,
     lastUpdated,

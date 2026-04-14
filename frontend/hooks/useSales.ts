@@ -52,6 +52,11 @@ export function useSales() {
       setAllSales(updated)
       setCached(CACHE_KEY, updated)
       toast.success('Sale recorded')
+      // Invalidate AI caches — new sale means insights are stale
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('talastock_ai_talastock:ai:insight')
+        localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
+      }
       return sale
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to record sale')

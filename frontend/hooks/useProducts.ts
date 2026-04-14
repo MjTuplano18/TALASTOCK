@@ -52,32 +52,27 @@ export function useProducts() {
   const products = allProducts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(allProducts.length / PAGE_SIZE))
 
-  async function createProduct(data: ProductCreate | ProductCreateWithInventory): Promise<Product | null> {
+  async function createProduct(data: ProductCreate | ProductCreateWithInventory, silent = false): Promise<Product | null> {
     try {
       const { initial_quantity, low_stock_threshold, ...productData } = data as ProductCreateWithInventory
       const product = await createProductQuery(productData)
 
-      // Set initial inventory if provided
       if ((initial_quantity !== undefined && initial_quantity > 0) || low_stock_threshold !== undefined) {
         const updates: Record<string, number> = {}
         if (initial_quantity !== undefined && initial_quantity > 0) updates.quantity = initial_quantity
         if (low_stock_threshold !== undefined) updates.low_stock_threshold = low_stock_threshold
-
         if (Object.keys(updates).length > 0) {
-          await supabase
-            .from('inventory')
-            .update(updates)
-            .eq('product_id', product.id)
+          await supabase.from('inventory').update(updates).eq('product_id', product.id)
         }
       }
 
       const updated = [product, ...allProducts]
       setAllProducts(updated)
       setCached(CACHE_KEY, updated)
-      toast.success('Product created')
+      if (!silent) toast.success('Product created')
       return product
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create product')
+      if (!silent) toast.error(err instanceof Error ? err.message : 'Failed to create product')
       return null
     }
   }
@@ -125,6 +120,29 @@ export function useProducts() {
     }
   }
 
+  async function bulkDelete(ids: string[]): Promise<void> {
+    const optimistic = allProducts.filter(p => !ids.includes(p.id))
+    setAllProducts(optimistic)
+    setCached(CACHE_KEY, optimistic)
+    try {
+      await Promise.all(ids.map(id => deleteProductQuery(id)))
+      toast.success(`${ids.length} products deleted`)
+    } catch (err) {
+      toast.error('Failed to delete some products')
+      fetchProducts(true)
+    }
+  }
+
+  async function bulkChangeCategory(ids: string[], categoryId: string): Promise<void> {
+    try {
+      await Promise.all(ids.map(id => updateProductQuery(id, { category_id: categoryId })))
+      await fetchProducts(true)
+      toast.success(`Category updated for ${ids.length} products`)
+    } catch (err) {
+      toast.error('Failed to update categories')
+    }
+  }
+
   return {
     products,
     allProducts,
@@ -136,6 +154,8 @@ export function useProducts() {
     createProduct,
     updateProduct,
     deleteProduct,
+    bulkDelete,
+    bulkChangeCategory,
     refetch: () => fetchProducts(true),
   }
 }

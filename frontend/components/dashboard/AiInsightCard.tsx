@@ -1,56 +1,65 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { DashboardMetrics, TopProductData, Sale } from '@/types'
+import { aiPost } from '@/lib/ai-fetch'
+import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import type { DashboardMetrics, TopProductData, Sale, SalesChartData } from '@/types'
+
+// Stable cache key — not tied to metric values so it survives remounts
+const CACHE_KEY = 'talastock:ai:insight'
 
 interface AiInsightCardProps {
   metrics: DashboardMetrics
   topProducts: TopProductData[]
   recentSales: Sale[]
+  salesChart?: SalesChartData[]
   loading?: boolean
 }
 
-export function AiInsightCard({ metrics, topProducts, recentSales, loading }: AiInsightCardProps) {
+export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, loading }: AiInsightCardProps) {
   const [insight, setInsight] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
   const [configured, setConfigured] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Restore from localStorage on mount — this is why it persists across navigation
+  useEffect(() => {
+    const cached = getAICached(CACHE_KEY)
+    if (cached) setInsight(cached)
+  }, [])
 
   async function fetchInsight() {
-    if (loading || !metrics.total_products) return
     setFetching(true)
+    setError(null)
     try {
-      const res = await fetch('/api/ai-insight', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          metrics,
-          topProducts,
-          recentSales,
-          lowStockCount: metrics.low_stock_count,
-        }),
+      // Check localStorage cache first — no API call if still fresh
+      const cached = getAICached(CACHE_KEY)
+      if (cached) { setInsight(cached); setFetching(false); return }
+
+      const res = await aiPost({
+        type: 'dashboard_insight',
+        metrics,
+        topProducts,
+        recentSales,
+        salesChart,
       })
       const data = await res.json()
-      if (data.error === 'AI not configured') {
-        setConfigured(false)
-      } else {
+      if (res.status === 401) { setError('Please log in to use AI features.'); return }
+      if (res.status === 429) { setError(data.error); return }
+      if (data.error === 'AI not configured') { setConfigured(false); return }
+      if (data.insight) {
+        setAICached(CACHE_KEY, data.insight, AI_TTL.INSIGHT)
         setInsight(data.insight)
       }
     } catch {
-      // silently fail
+      setError('Unable to reach AI service.')
     } finally {
       setFetching(false)
     }
   }
 
-  useEffect(() => {
-    if (!loading && metrics.total_products > 0) {
-      fetchInsight()
-    }
-  }, [loading])
-
-  // Don't render if AI not configured
   if (!configured) return null
 
   return (
@@ -72,16 +81,24 @@ export function AiInsightCard({ metrics, topProducts, recentSales, loading }: Ai
         </button>
       </div>
 
-      {fetching || loading ? (
+      {fetching ? (
         <div className="flex flex-col gap-1.5">
           <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-full" />
           <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-4/5" />
           <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-3/5" />
         </div>
+      ) : error ? (
+        <p className="text-xs text-[#C05050]">{error}</p>
       ) : insight ? (
         <p className="text-xs text-[#7A3E2E] leading-relaxed">{insight}</p>
       ) : (
-        <p className="text-xs text-[#B89080]">Add more sales data to get AI insights.</p>
+        <button
+          onClick={fetchInsight}
+          disabled={loading}
+          className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors disabled:opacity-40"
+        >
+          Click to generate insight →
+        </button>
       )}
     </div>
   )

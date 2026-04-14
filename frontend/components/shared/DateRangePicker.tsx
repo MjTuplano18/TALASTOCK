@@ -109,17 +109,19 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       <button
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'flex items-center gap-2 pl-3 pr-2 py-1.5 text-sm border rounded-lg bg-white transition-colors whitespace-nowrap',
+          'flex items-center gap-2 pl-3 pr-2.5 py-1.5 text-sm border rounded-lg bg-white transition-colors whitespace-nowrap',
           hasValue ? 'border-[#E8896A] text-[#7A3E2E]' : 'border-[#F2C4B0] text-[#B89080] hover:border-[#E8896A]'
         )}
       >
         <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
         {label}
-        {hasValue && (
+        {hasValue ? (
           <span onClick={e => { e.stopPropagation(); onChange({ from: null, to: null }) }}
             className="ml-1 text-[#B89080] hover:text-[#7A3E2E] cursor-pointer">
             <X className="w-3 h-3" />
           </span>
+        ) : (
+          <ChevronRight className={cn('w-3 h-3 text-[#B89080] transition-transform', open && 'rotate-90')} />
         )}
       </button>
 

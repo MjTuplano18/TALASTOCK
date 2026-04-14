@@ -1,25 +1,30 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Plus, Minus } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { InventoryItem } from '@/types'
 
-const adjustmentSchema = z.object({
-  quantity: z.coerce.number().min(0, 'Quantity must be 0 or greater'),
-  note: z.string().min(1, 'Note is required'),
+type Mode = 'restock' | 'deduct'
+
+const REASONS: Record<Mode, string[]> = {
+  restock: ['New stock received', 'Return from customer', 'Stock correction', 'Other'],
+  deduct: ['Damaged / expired', 'Lost / stolen', 'Internal use', 'Stock correction', 'Other'],
+}
+
+const schema = z.object({
+  amount: z.coerce.number().int().min(1, 'Amount must be at least 1'),
+  reason: z.string().min(1, 'Please select a reason'),
+  note: z.string().optional(),
 })
 
-type AdjustmentFormValues = z.infer<typeof adjustmentSchema>
+type FormValues = z.infer<typeof schema>
 
 interface InventoryAdjustmentFormProps {
   open: boolean
@@ -28,99 +33,121 @@ interface InventoryAdjustmentFormProps {
   onSubmit: (quantity: number, note: string) => Promise<void>
 }
 
-export function InventoryAdjustmentForm({
-  open,
-  onOpenChange,
-  item,
-  onSubmit,
-}: InventoryAdjustmentFormProps) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<AdjustmentFormValues>({
-    resolver: zodResolver(adjustmentSchema),
-    defaultValues: { quantity: item.quantity, note: '' },
+export function InventoryAdjustmentForm({ open, onOpenChange, item, onSubmit }: InventoryAdjustmentFormProps) {
+  const [mode, setMode] = useState<Mode>('restock')
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { amount: 1, reason: '', note: '' },
   })
 
-  useEffect(() => {
-    if (open) {
-      reset({ quantity: item.quantity, note: '' })
-    }
-  }, [open, item.quantity, reset])
+  const amount = watch('amount') || 0
+  const reason = watch('reason')
+  const newQty = mode === 'restock'
+    ? item.quantity + Number(amount)
+    : Math.max(0, item.quantity - Number(amount))
 
-  async function onFormSubmit(values: AdjustmentFormValues) {
-    await onSubmit(values.quantity, values.note)
+  useEffect(() => {
+    if (open) reset({ amount: 1, reason: '', note: '' })
+  }, [open, reset])
+
+  useEffect(() => {
+    setValue('reason', '')
+  }, [mode, setValue])
+
+  async function onFormSubmit(values: FormValues) {
+    const fullNote = values.note ? `${values.reason} — ${values.note}` : values.reason
+    await onSubmit(newQty, fullNote)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-[#F2C4B0] max-w-sm">
+      <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-[#7A3E2E]">Adjust Inventory</DialogTitle>
+          <DialogTitle className="text-[#7A3E2E]">Adjust Stock</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onFormSubmit)} className="flex flex-col gap-3 mt-2">
-          {/* Product name (read-only) */}
-          <div>
-            <label className="text-xs text-[#B89080] mb-1 block">Product</label>
-            <div className="text-sm text-[#7A3E2E] font-medium px-3 py-2 bg-[#FDF6F0] rounded-md border border-[#F2C4B0]">
-              {item.products?.name ?? '—'}
-            </div>
+        <form onSubmit={handleSubmit(onFormSubmit)} className="flex flex-col gap-3 mt-1">
+          {/* Product info */}
+          <div className="bg-[#FDF6F0] rounded-xl p-3 border border-[#F2C4B0]">
+            <p className="text-sm font-medium text-[#7A3E2E]">{item.products?.name ?? '—'}</p>
+            <p className="text-xs text-[#B89080] font-mono mt-0.5">{item.products?.sku ?? ''}</p>
+            <p className="text-xs text-[#B89080] mt-1">Current stock: <span className="font-medium text-[#7A3E2E]">{item.quantity}</span></p>
           </div>
 
-          {/* Current quantity (read-only) */}
-          <div>
-            <label className="text-xs text-[#B89080] mb-1 block">Current Quantity</label>
-            <div className="text-sm text-[#B89080] px-3 py-2 bg-[#FDF6F0] rounded-md border border-[#F2C4B0]">
-              {item.quantity}
-            </div>
+          {/* Mode toggle */}
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setMode('restock')}
+              className={cn('flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium border transition-colors',
+                mode === 'restock'
+                  ? 'bg-[#FDE8DF] border-[#E8896A] text-[#C1614A]'
+                  : 'border-[#F2C4B0] text-[#B89080] hover:bg-[#FDF6F0]')}>
+              <Plus className="w-4 h-4" />Restock
+            </button>
+            <button type="button" onClick={() => setMode('deduct')}
+              className={cn('flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium border transition-colors',
+                mode === 'deduct'
+                  ? 'bg-[#FDECEA] border-[#C05050] text-[#C05050]'
+                  : 'border-[#F2C4B0] text-[#B89080] hover:bg-[#FDF6F0]')}>
+              <Minus className="w-4 h-4" />Deduct
+            </button>
           </div>
 
-          {/* New quantity */}
+          {/* Amount */}
           <div>
-            <label className="text-xs text-[#B89080] mb-1 block">New Quantity</label>
-            <Input
-              type="text"
-              inputMode="numeric"
+            <label className="text-xs text-[#B89080] mb-1 block">
+              {mode === 'restock' ? 'Units to add' : 'Units to remove'}
+            </label>
+            <Input type="text" inputMode="numeric" placeholder="0"
               className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E]"
-              {...register('quantity')}
-            />
-            {errors.quantity && (
-              <p className="text-xs text-[#C05050] mt-1">{errors.quantity.message}</p>
-            )}
+              {...register('amount')} />
+            {errors.amount && <p className="text-xs text-[#C05050] mt-1">{errors.amount.message}</p>}
           </div>
 
-          {/* Note */}
+          {/* Reason */}
           <div>
-            <label className="text-xs text-[#B89080] mb-1 block">Note</label>
-            <Input
-              placeholder="Reason for adjustment"
-              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E]"
-              {...register('note')}
-            />
-            {errors.note && (
-              <p className="text-xs text-[#C05050] mt-1">{errors.note.message}</p>
-            )}
+            <label className="text-xs text-[#B89080] mb-1 block">Reason</label>
+            <div className="flex flex-wrap gap-1.5">
+              {REASONS[mode].map(r => (
+                <button key={r} type="button" onClick={() => setValue('reason', r)}
+                  className={cn('px-2.5 py-1 text-xs rounded-lg border transition-colors',
+                    reason === r
+                      ? 'bg-[#FDE8DF] border-[#E8896A] text-[#C1614A]'
+                      : 'border-[#F2C4B0] text-[#B89080] hover:bg-[#FDF6F0]')}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            {errors.reason && <p className="text-xs text-[#C05050] mt-1">{errors.reason.message}</p>}
           </div>
 
-          <div className="flex justify-end gap-2 mt-1">
-            <Button
-              type="button"
-              variant="outline"
-              className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
+          {/* Optional note */}
+          <div>
+            <label className="text-xs text-[#B89080] mb-1 block">Additional note <span className="text-[#B89080]">(optional)</span></label>
+            <Input placeholder="e.g. Batch #123, supplier name…"
+              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E]"
+              {...register('note')} />
+          </div>
+
+          {/* Preview */}
+          <div className={cn('flex items-center justify-between rounded-xl px-3 py-2 text-sm',
+            mode === 'restock' ? 'bg-[#FDE8DF]' : 'bg-[#FDECEA]')}>
+            <span className="text-[#B89080]">New quantity:</span>
+            <span className={cn('font-medium', mode === 'restock' ? 'text-[#C1614A]' : 'text-[#C05050]')}>
+              {item.quantity} → {newQty}
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline"
+              className="flex-1 border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+              onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
-            >
-              {isSubmitting ? 'Saving…' : 'Save adjustment'}
+            <Button type="submit" disabled={isSubmitting || !reason}
+              className={cn('flex-1 text-white border-0',
+                mode === 'restock' ? 'bg-[#E8896A] hover:bg-[#C1614A]' : 'bg-[#C05050] hover:bg-[#A03030]')}>
+              {isSubmitting ? 'Saving…' : mode === 'restock' ? 'Add Stock' : 'Remove Stock'}
             </Button>
           </div>
         </form>

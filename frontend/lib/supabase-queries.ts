@@ -259,32 +259,78 @@ export async function getDashboardMetrics(): Promise<import('@/types').Dashboard
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString()
 
-  const { count: total_products, error: prodError } = await supabase
+  const { count: total_products } = await supabase
     .from('products').select('id', { count: 'exact', head: true }).eq('is_active', true)
-  if (prodError) throw new Error(prodError.message)
 
-  const { data: invData, error: invError } = await supabase
+  const { data: invData } = await supabase
     .from('inventory').select('quantity, products!inner(cost_price, is_active)').eq('products.is_active', true)
-  if (invError) throw new Error(invError.message)
 
   const total_inventory_value = (invData ?? []).reduce((sum, item) => {
     const row = item as unknown as { quantity: number; products: { cost_price: number } }
     return sum + row.quantity * row.products.cost_price
   }, 0)
 
+  // This month sales
   const { data: salesData } = await supabase.from('sales').select('total_amount')
     .gte('created_at', monthStart).lte('created_at', monthEnd)
   const total_sales_revenue = (salesData ?? []).reduce((sum, s) => sum + (s as any).total_amount, 0)
+  const total_sales_count = salesData?.length ?? 0
 
+  // Last month sales
   const { data: lastSalesData } = await supabase.from('sales').select('total_amount')
     .gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd)
   const last_month_revenue = (lastSalesData ?? []).reduce((sum, s) => sum + (s as any).total_amount, 0)
 
+  // Gross profit: revenue - cost of goods sold this month
+  // Join through sales to filter by date (sale_items has no created_at)
+  const { data: monthSales } = await supabase
+    .from('sales')
+    .select('id')
+    .gte('created_at', monthStart)
+    .lte('created_at', monthEnd)
+  const monthSaleIds = (monthSales ?? []).map((s: any) => s.id)
+
+  let gross_profit = 0
+  if (monthSaleIds.length > 0) {
+    const { data: saleItemsData } = await supabase
+      .from('sale_items')
+      .select('quantity, unit_price, products(cost_price)')
+      .in('sale_id', monthSaleIds)
+    gross_profit = (saleItemsData ?? []).reduce((sum, item) => {
+      const row = item as unknown as { quantity: number; unit_price: number; products: { cost_price: number } | null }
+      const revenue = row.quantity * row.unit_price
+      const cost = row.quantity * (row.products?.cost_price ?? 0)
+      return sum + (revenue - cost)
+    }, 0)
+  }
+
+  // Average order value
+  const avg_order_value = total_sales_count > 0 ? total_sales_revenue / total_sales_count : 0
+
+  // Low stock count
   const { data: allInv } = await supabase.from('inventory').select('quantity, low_stock_threshold')
   const low_stock_count = (allInv ?? []).filter((item: any) => item.quantity <= item.low_stock_threshold).length
 
-  // Last month product count (approximate — use current as baseline)
-  const last_month_products = total_products ?? 0
+  // Dead stock: products with no sales in last 30 days
+  // Query sales in last 30 days, then get their product IDs via sale_items
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const { data: recentSales30 } = await supabase
+    .from('sales')
+    .select('id')
+    .gte('created_at', thirtyDaysAgo)
+  const recentSaleIds = (recentSales30 ?? []).map((s: any) => s.id)
+
+  let recentProductIds = new Set<string>()
+  if (recentSaleIds.length > 0) {
+    const { data: recentSaleItems } = await supabase
+      .from('sale_items')
+      .select('product_id')
+      .in('sale_id', recentSaleIds)
+    recentProductIds = new Set((recentSaleItems ?? []).map((i: any) => i.product_id))
+  }
+
+  const { data: allProducts } = await supabase.from('products').select('id').eq('is_active', true)
+  const dead_stock_count = (allProducts ?? []).filter((p: any) => !recentProductIds.has(p.id)).length
 
   return {
     total_products: total_products ?? 0,
@@ -292,7 +338,11 @@ export async function getDashboardMetrics(): Promise<import('@/types').Dashboard
     total_sales_revenue,
     low_stock_count,
     last_month_revenue,
-    last_month_products,
+    last_month_products: total_products ?? 0,
+    gross_profit,
+    avg_order_value,
+    total_sales_count,
+    dead_stock_count,
   }
 }
 
@@ -424,4 +474,93 @@ export async function getRevenueChartData(): Promise<import('@/types').RevenueCh
   }
 
   return months
+}
+
+export async function getCategoryPerformance(): Promise<import('@/types').CategoryPerformance[]> {
+  const { data, error } = await supabase
+    .from('sale_items')
+    .select('quantity, unit_price, products(name, category_id, categories(name))')
+
+  if (error) throw new Error(error.message)
+
+  const map: Record<string, { revenue: number; units: number }> = {}
+  for (const item of data ?? []) {
+    const row = item as unknown as {
+      quantity: number
+      unit_price: number
+      products: { categories: { name: string } | null } | null
+    }
+    const cat = row.products?.categories?.name ?? 'Uncategorized'
+    if (!map[cat]) map[cat] = { revenue: 0, units: 0 }
+    map[cat].revenue += row.quantity * row.unit_price
+    map[cat].units += row.quantity
+  }
+
+  return Object.entries(map)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .map(([category, d]) => ({ category, revenue: d.revenue, units: d.units }))
+}
+
+export async function getDeadStock(): Promise<import('@/types').DeadStockItem[]> {
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  // Get all products with inventory
+  const { data: products } = await supabase
+    .from('products')
+    .select('id, name, sku, cost_price, inventory(quantity)')
+    .eq('is_active', true)
+
+  // Get sales in last 30 days, then their product IDs via sale_items
+  const { data: recentSalesData } = await supabase
+    .from('sales').select('id').gte('created_at', thirtyDaysAgo)
+  const recentSaleIds = (recentSalesData ?? []).map((s: any) => s.id)
+
+  const recentMap: Record<string, boolean> = {}
+  if (recentSaleIds.length > 0) {
+    const { data: recentItemsData } = await supabase
+      .from('sale_items').select('product_id').in('sale_id', recentSaleIds)
+    for (const item of recentItemsData ?? []) recentMap[(item as any).product_id] = true
+  }
+
+  // Get last sale date per product: join sales (has created_at) with sale_items
+  const { data: allSalesOrdered } = await supabase
+    .from('sales').select('id, created_at').order('created_at', { ascending: false })
+  const { data: allSaleItemsData } = await supabase
+    .from('sale_items').select('product_id, sale_id')
+
+  const saleCreatedAt: Record<string, string> = {}
+  for (const s of allSalesOrdered ?? []) saleCreatedAt[(s as any).id] = (s as any).created_at
+
+  const lastSaleMap: Record<string, string> = {}
+  for (const item of allSaleItemsData ?? []) {
+    const row = item as any
+    const saleDate = saleCreatedAt[row.sale_id]
+    if (saleDate && (!lastSaleMap[row.product_id] || saleDate > lastSaleMap[row.product_id])) {
+      lastSaleMap[row.product_id] = saleDate
+    }
+  }
+
+  const dead: import('@/types').DeadStockItem[] = []
+  for (const p of products ?? []) {
+    const row = p as unknown as { id: string; name: string; sku: string; cost_price: number; inventory: { quantity: number }[] }
+    const qty = row.inventory?.[0]?.quantity ?? 0
+    if (qty === 0) continue
+    if (recentMap[row.id]) continue
+
+    const lastSale = lastSaleMap[row.id]
+    const daysSince = lastSale
+      ? Math.floor((now.getTime() - new Date(lastSale).getTime()) / (1000 * 60 * 60 * 24))
+      : null
+
+    dead.push({
+      product: row.name,
+      sku: row.sku,
+      quantity: qty,
+      value: qty * row.cost_price,
+      days_since_last_sale: daysSince,
+    })
+  }
+
+  return dead.sort((a, b) => (b.days_since_last_sale ?? 999) - (a.days_since_last_sale ?? 999))
 }

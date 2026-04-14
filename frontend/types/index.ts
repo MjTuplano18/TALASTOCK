@@ -97,6 +97,25 @@ export interface DashboardMetrics {
   low_stock_count: number
   last_month_revenue?: number
   last_month_products?: number
+  // New metrics
+  gross_profit?: number
+  avg_order_value?: number
+  total_sales_count?: number
+  dead_stock_count?: number
+}
+
+export interface CategoryPerformance {
+  category: string
+  revenue: number
+  units: number
+}
+
+export interface DeadStockItem {
+  product: string
+  sku: string
+  quantity: number
+  value: number
+  days_since_last_sale: number | null
 }
 
 export interface SalesChartData {

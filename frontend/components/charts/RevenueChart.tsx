@@ -39,7 +39,7 @@ export function RevenueChart({ data }: { data: RevenueChartData[] }) {
           fontSize={11}
           tickLine={false}
           axisLine={false}
-          tickFormatter={v => `₱${v}`}
+          tickFormatter={v => `₱${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#F2C4B0', strokeWidth: 1 }} />
         <Area
