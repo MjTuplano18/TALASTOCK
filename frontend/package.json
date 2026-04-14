@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:clean": "powershell -ExecutionPolicy Bypass -File ./dev-restart.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -17,6 +18,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.8.0",
     "next": "14.2.35",

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
   Package,
@@ -50,7 +51,10 @@ export function Sidebar() {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+      <nav 
+        className="flex-1 px-3 py-4 flex flex-col gap-1"
+        aria-label="Main navigation"
+      >
         {navItems.map(({ label, href, icon: Icon }) => {
           const active = pathname.startsWith(href)
           return (
@@ -58,15 +62,24 @@ export function Sidebar() {
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                'relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                 active
-                  ? 'bg-[#FDE8DF] text-[#C1614A] font-medium'
+                  ? 'text-[#C1614A] font-medium'
                   : 'text-[#7A3E2E] hover:bg-[#FDF6F0]'
               )}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
+              {active && (
+                <motion.div
+                  layoutId="sidebar-active"
+                  className="absolute inset-0 bg-[#FDE8DF] rounded-lg"
+                  transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                  aria-hidden="true"
+                />
+              )}
+              <Icon className="w-4 h-4 shrink-0 relative z-10" aria-hidden="true" />
+              <span className="relative z-10">{label}</span>
             </Link>
           )
         })}
@@ -76,9 +89,10 @@ export function Sidebar() {
       <div className="px-3 py-4 border-t border-[#F2C4B0]">
         <button
           onClick={handleSignOut}
+          aria-label="Sign out of your account"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[#B89080] hover:bg-[#FDF6F0] hover:text-[#7A3E2E] w-full transition-colors"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
+          <LogOut className="w-4 h-4 shrink-0" aria-hidden="true" />
           Sign out
         </button>
       </div>
@@ -88,15 +102,20 @@ export function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-56 shrink-0 bg-white border-r border-[#F2C4B0] flex-col">
+      <aside 
+        className="hidden md:flex w-56 shrink-0 bg-white border-r border-[#F2C4B0] flex-col"
+        aria-label="Sidebar navigation"
+      >
         <NavContent />
       </aside>
 
       {/* Mobile toggle */}
       <button
-        className="md:hidden fixed top-4 left-4 z-50 w-9 h-9 flex items-center justify-center bg-white border border-[#F2C4B0] rounded-lg text-[#7A3E2E]"
+        className="md:hidden fixed top-4 left-4 z-50 w-9 h-9 flex items-center justify-center bg-white border border-[#F2C4B0] rounded-lg text-[#7A3E2E] focus:outline-none focus:ring-2 focus:ring-[#E8896A] focus:ring-offset-2"
         onClick={() => setMobileOpen(v => !v)}
-        aria-label="Toggle navigation"
+        aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={mobileOpen}
+        aria-controls="mobile-navigation"
       >
         {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
       </button>
@@ -107,8 +126,14 @@ export function Sidebar() {
           <div
             className="md:hidden fixed inset-0 z-40 bg-black/20"
             onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
           />
-          <aside className="md:hidden fixed left-0 top-0 bottom-0 z-50 w-56 bg-white border-r border-[#F2C4B0] flex flex-col">
+          <aside 
+            id="mobile-navigation"
+            className="md:hidden fixed left-0 top-0 bottom-0 z-50 w-56 bg-white border-r border-[#F2C4B0] flex flex-col"
+            role="dialog"
+            aria-label="Mobile navigation"
+          >
             <NavContent />
           </aside>
         </>

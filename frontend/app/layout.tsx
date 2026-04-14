@@ -20,7 +20,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={plusJakartaSans.variable}>
       <body className={`antialiased ${plusJakartaSans.className}`}>
         {children}
-        <Toaster richColors position="top-center" />
+        <Toaster 
+          richColors 
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: '#FFFFFF',
+              border: '1px solid #F2C4B0',
+              color: '#7A3E2E',
+            },
+            className: 'toast-custom',
+          }}
+          closeButton
+          duration={3000}
+        />
       </body>
     </html>
   )

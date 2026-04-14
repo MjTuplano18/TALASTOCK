@@ -76,26 +76,29 @@ export default function DashboardPage() {
     : '0'
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2 sm:gap-3">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto">
           {lastUpdated && (
-            <span className="text-xs text-[#B89080] hidden sm:block">{timeAgo(lastUpdated)}</span>
+            <span className="text-xs text-[#B89080] hidden lg:block whitespace-nowrap">{timeAgo(lastUpdated)}</span>
           )}
           <button onClick={handleExport} disabled={exporting || loading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50">
-            <Download className="w-3 h-3" />Export PDF
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+            <Download className="w-3 h-3" />
+            <span className="hidden sm:inline">Export PDF</span>
           </button>
           <button onClick={refresh} disabled={loading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50">
-            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />Refresh
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
           <button onClick={() => setSaleFormOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors">
-            <ShoppingCart className="w-3 h-3" />Record Sale
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            <ShoppingCart className="w-3 h-3" />
+            <span className="hidden sm:inline">Record Sale</span>
           </button>
         </div>
       </div>
@@ -103,20 +106,20 @@ export default function DashboardPage() {
       {/* Low Stock Banner */}
       {!loading && metrics.low_stock_count > 0 && (
         <button onClick={() => router.push('/inventory')}
-          className="w-full flex items-center justify-between bg-[#FDECEA] border border-[#F2C4B0] rounded-xl px-4 py-2.5 hover:bg-[#fde0dd] transition-colors group">
+          className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#FDECEA] border border-[#F2C4B0] rounded-xl px-4 py-2.5 hover:bg-[#fde0dd] transition-colors group gap-2">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-[#C05050] shrink-0" />
             <span className="text-sm text-[#C05050]">
               <span className="font-medium">{metrics.low_stock_count} {metrics.low_stock_count === 1 ? 'item needs' : 'items need'} restocking</span>
-              <span className="text-[#B89080] ml-1">— check your inventory</span>
+              <span className="text-[#B89080] ml-1 hidden sm:inline">— check your inventory</span>
             </span>
           </div>
-          <span className="text-xs text-[#C05050] group-hover:underline shrink-0">View now →</span>
+          <span className="text-xs text-[#C05050] group-hover:underline shrink-0 ml-6 sm:ml-0">View now →</span>
         </button>
       )}
 
       {/* Row 1 — 6 KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         {loading ? (
           <>{[...Array(6)].map((_, i) => <MetricCardSkeleton key={i} />)}</>
         ) : (
@@ -158,8 +161,8 @@ export default function DashboardPage() {
       </ChartCard>
 
       {/* Row 3 — Revenue Goal + Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 sm:gap-3">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[250px]">
           <h3 className="text-sm font-medium text-[#7A3E2E] mb-3">Monthly Revenue Goal</h3>
           <div className="flex-1 flex items-center justify-center">
             <RevenueRadial current={metrics.total_sales_revenue} loading={loading} />
@@ -173,7 +176,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 4 — Revenue 6 months + Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 sm:gap-3">
         <div className="lg:col-span-3">
           <ChartCard title="Revenue (Last 6 Months)">
             {loading ? <ChartSkeleton /> : <RevenueChart data={revenueChartData} />}
@@ -187,7 +190,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 5 — Category Performance + Dead Stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
         <ChartCard title="Sales by Category">
           {loading ? <ChartSkeleton /> : <CategoryPerformanceChart data={categoryPerformance} />}
         </ChartCard>
@@ -197,7 +200,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 6 — AI Features (3 columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3">
         <AiInsightCard
           metrics={metrics}
           topProducts={topProductsData}

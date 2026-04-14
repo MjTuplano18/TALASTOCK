@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, X, CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react'
+import { CheckCircle, AlertCircle, Download, FileSpreadsheet } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { parseImportFile, type ImportRow, type ParseResult } from '@/lib/excel'
 import type { ProductCreateWithInventory } from '@/components/forms/ProductForm'

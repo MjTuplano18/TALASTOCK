@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { useSales } from '@/hooks/useSales'
 import { useProducts } from '@/hooks/useProducts'
+import { useDebounce } from '@/hooks/useDebounce'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -71,11 +72,14 @@ export default function SalesPage() {
   const [amountRange, setAmountRange] = useState<RangeValue>({ min: '', max: '' })
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null })
 
+  // Debounce search to reduce re-renders
+  const debouncedSearch = useDebounce(search, 300)
+
   const filtered = useMemo(() => {
     setPage(1)
     return allSales.filter(sale => {
-      if (search) {
-        const q = search.toLowerCase()
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase()
         const inItems = sale.sale_items?.some(i => i.products?.name?.toLowerCase().includes(q))
         const inNotes = sale.notes?.toLowerCase().includes(q)
         if (!inItems && !inNotes) return false
@@ -89,7 +93,7 @@ export default function SalesPage() {
       }
       return true
     })
-  }, [allSales, search, amountRange, dateRange])
+  }, [allSales, debouncedSearch, amountRange, dateRange])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)

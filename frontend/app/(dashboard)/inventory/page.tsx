@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { AlertTriangle, Plus, Minus, History } from 'lucide-react'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
 import { useInventory } from '@/hooks/useInventory'
+import { useDebounce } from '@/hooks/useDebounce'
 import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm'
 import { StockHistoryDrawer } from '@/components/inventory/StockHistoryDrawer'
 import { StockBadge } from '@/components/shared/StockBadge'
@@ -69,11 +70,14 @@ export default function InventoryPage() {
   const [adjustTarget, setAdjustTarget] = useState<InventoryItem | null>(null)
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null)
 
+  // Debounce search to reduce re-renders
+  const debouncedSearch = useDebounce(search, 300)
+
   const filtered = useMemo(() => {
     setPage(1)
     return inventory.filter(item => {
-      if (search) {
-        const q = search.toLowerCase()
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase()
         const name = item.products?.name?.toLowerCase() ?? ''
         const sku = item.products?.sku?.toLowerCase() ?? ''
         if (!name.includes(q) && !sku.includes(q)) return false
@@ -84,7 +88,7 @@ export default function InventoryPage() {
       }
       return true
     })
-  }, [inventory, search, statusFilter])
+  }, [inventory, debouncedSearch, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)

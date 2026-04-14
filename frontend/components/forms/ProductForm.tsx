@@ -22,7 +22,33 @@ const productSchema = z.object({
   price: z.coerce.number().min(0, 'Price must be 0 or greater'),
   cost_price: z.coerce.number().min(0, 'Cost price must be 0 or greater'),
   category_id: z.string().uuid().nullable().optional(),
-  image_url: z.string().url('Enter a valid URL').nullable().optional().or(z.literal('')),
+  image_url: z.string()
+    .url('Enter a valid URL')
+    .refine(
+      (url) => {
+        if (!url) return true // Allow empty
+        try {
+          const parsed = new URL(url)
+          // Only allow HTTPS and common image hosting domains
+          const allowedDomains = [
+            'imgur.com', 'i.imgur.com',
+            'cloudinary.com', 'res.cloudinary.com',
+            'supabase.co', 'supabase.in',
+            'amazonaws.com', 's3.amazonaws.com',
+            'googleusercontent.com',
+            'unsplash.com', 'images.unsplash.com',
+          ]
+          return parsed.protocol === 'https:' && 
+                 allowedDomains.some(domain => parsed.hostname.includes(domain))
+        } catch {
+          return false
+        }
+      },
+      { message: 'Image URL must be HTTPS and from a trusted domain (Imgur, Cloudinary, Supabase, etc.)' }
+    )
+    .nullable()
+    .optional()
+    .or(z.literal('')),
   // Inventory fields — only used on create
   initial_quantity: z.coerce.number().int().min(0, 'Quantity must be 0 or greater').optional(),
   low_stock_threshold: z.coerce.number().int().min(0, 'Threshold must be 0 or greater').optional(),

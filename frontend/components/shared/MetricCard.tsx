@@ -1,5 +1,8 @@
+'use client'
+
 import { cn } from '@/lib/utils'
 import { TrendingUp, TrendingDown } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 interface MetricCardProps {
   label: string
@@ -15,9 +18,14 @@ export function MetricCard({ label, value, sub, icon, danger, change }: MetricCa
   const isUp = hasChange && change! >= 0
 
   return (
-    <div className="bg-white rounded-xl border border-[#F2C4B0] p-3">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="bg-white rounded-xl border border-[#F2C4B0] p-3 sm:p-4"
+    >
       <div className="flex items-start justify-between mb-2">
-        <div className="w-7 h-7 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
           {icon}
         </div>
         {hasChange && (
@@ -33,10 +41,10 @@ export function MetricCard({ label, value, sub, icon, danger, change }: MetricCa
         )}
       </div>
       <p className="text-xs text-[#B89080] mb-0.5">{label}</p>
-      <p className={cn('text-xl font-medium leading-tight', danger ? 'text-[#C05050]' : 'text-[#7A3E2E]')}>
+      <p className={cn('text-xl sm:text-2xl font-medium leading-tight', danger ? 'text-[#C05050]' : 'text-[#7A3E2E]')}>
         {value}
       </p>
       {sub && <p className="text-xs text-[#B89080] mt-0.5">{sub}</p>}
-    </div>
+    </motion.div>
   )
 }

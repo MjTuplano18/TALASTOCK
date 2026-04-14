@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { withRetry } from '@/lib/retry'
+import { getCached, setCached } from '@/lib/cache'
 import {
   getDashboardMetrics,
   getSalesChartData,
@@ -22,32 +24,77 @@ const DEFAULT_METRICS: DashboardMetrics = {
   low_stock_count: 0,
 }
 
+// Cache keys
+const CACHE_KEYS = {
+  metrics: 'dashboard_metrics',
+  salesChart: (range: DateRange) => `dashboard_sales_${range}`,
+  topProducts: 'dashboard_top_products',
+  revenueChart: 'dashboard_revenue',
+  recentSales: 'dashboard_recent_sales',
+  categoryPerf: 'dashboard_category_perf',
+  deadStock: 'dashboard_dead_stock',
+}
+
 export function useDashboardMetrics() {
-  const [metrics, setMetrics] = useState<DashboardMetrics>(DEFAULT_METRICS)
-  const [salesChartData, setSalesChartData] = useState<SalesChartData[]>([])
-  const [topProductsData, setTopProductsData] = useState<TopProductData[]>([])
-  const [revenueChartData, setRevenueChartData] = useState<RevenueChartData[]>([])
-  const [recentSales, setRecentSales] = useState<Sale[]>([])
-  const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([])
-  const [deadStock, setDeadStock] = useState<DeadStockItem[]>([])
-  const [loading, setLoading] = useState(true)
+  // Initialize from cache if available
+  const [metrics, setMetrics] = useState<DashboardMetrics>(() => 
+    getCached<DashboardMetrics>(CACHE_KEYS.metrics) ?? DEFAULT_METRICS
+  )
+  const [salesChartData, setSalesChartData] = useState<SalesChartData[]>(() =>
+    getCached<SalesChartData[]>(CACHE_KEYS.salesChart('7d')) ?? []
+  )
+  const [topProductsData, setTopProductsData] = useState<TopProductData[]>(() =>
+    getCached<TopProductData[]>(CACHE_KEYS.topProducts) ?? []
+  )
+  const [revenueChartData, setRevenueChartData] = useState<RevenueChartData[]>(() =>
+    getCached<RevenueChartData[]>(CACHE_KEYS.revenueChart) ?? []
+  )
+  const [recentSales, setRecentSales] = useState<Sale[]>(() =>
+    getCached<Sale[]>(CACHE_KEYS.recentSales) ?? []
+  )
+  const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>(() =>
+    getCached<CategoryPerformance[]>(CACHE_KEYS.categoryPerf) ?? []
+  )
+  const [deadStock, setDeadStock] = useState<DeadStockItem[]>(() =>
+    getCached<DeadStockItem[]>(CACHE_KEYS.deadStock) ?? []
+  )
+  
+  const [loading, setLoading] = useState(() => {
+    // Only show loading if we don't have cached data
+    return !getCached<DashboardMetrics>(CACHE_KEYS.metrics)
+  })
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
 
-  const fetchAll = useCallback(async (range: DateRange = dateRange) => {
+  const fetchAll = useCallback(async (range: DateRange = dateRange, force = false) => {
+    // Check cache first unless forced
+    if (!force) {
+      const cachedMetrics = getCached<DashboardMetrics>(CACHE_KEYS.metrics)
+      const cachedSales = getCached<SalesChartData[]>(CACHE_KEYS.salesChart(range))
+      
+      if (cachedMetrics && cachedSales) {
+        // We have cached data, use it and skip loading
+        setLoading(false)
+        return
+      }
+    }
+    
     setLoading(true)
     setError(null)
     try {
+      // Wrap all queries with retry logic
       const [m, sales, top, revenue, recent, catPerf, dead] = await Promise.all([
-        getDashboardMetrics(),
-        getSalesChartData(range),
-        getTopProductsData(),
-        getRevenueChartData(),
-        getRecentSales(5),
-        getCategoryPerformance(),
-        getDeadStock(),
+        withRetry(() => getDashboardMetrics(), { maxRetries: 2 }),
+        withRetry(() => getSalesChartData(range), { maxRetries: 2 }),
+        withRetry(() => getTopProductsData(), { maxRetries: 2 }),
+        withRetry(() => getRevenueChartData(), { maxRetries: 2 }),
+        withRetry(() => getRecentSales(5), { maxRetries: 2 }),
+        withRetry(() => getCategoryPerformance(), { maxRetries: 2 }),
+        withRetry(() => getDeadStock(), { maxRetries: 2 }),
       ])
+      
+      // Update state
       setMetrics(m)
       setSalesChartData(sales)
       setTopProductsData(top)
@@ -56,7 +103,17 @@ export function useDashboardMetrics() {
       setCategoryPerformance(catPerf)
       setDeadStock(dead)
       setLastUpdated(new Date())
+      
+      // Cache the results
+      setCached(CACHE_KEYS.metrics, m)
+      setCached(CACHE_KEYS.salesChart(range), sales)
+      setCached(CACHE_KEYS.topProducts, top)
+      setCached(CACHE_KEYS.revenueChart, revenue)
+      setCached(CACHE_KEYS.recentSales, recent)
+      setCached(CACHE_KEYS.categoryPerf, catPerf)
+      setCached(CACHE_KEYS.deadStock, dead)
     } catch (err) {
+      console.error('Dashboard fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
     } finally {
       setLoading(false)
@@ -68,20 +125,28 @@ export function useDashboardMetrics() {
     fetchAll(dateRange)
   }, [dateRange])
 
-  // Realtime subscriptions
+  // Realtime subscriptions with error handling
   useEffect(() => {
     const channel = supabase
       .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => fetchAll(dateRange))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => fetchAll(dateRange))
-      .subscribe()
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+        fetchAll(dateRange, true).catch(err => console.error('Realtime refetch error:', err))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
+        fetchAll(dateRange, true).catch(err => console.error('Realtime refetch error:', err))
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') {
+          console.error('Realtime subscription error')
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [fetchAll, dateRange])
 
-  const refresh = useCallback(() => fetchAll(dateRange), [fetchAll, dateRange])
+  const refresh = useCallback(() => fetchAll(dateRange, true), [fetchAll, dateRange])
 
   return {
     metrics,

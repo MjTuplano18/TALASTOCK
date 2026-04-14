@@ -3,20 +3,36 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getInventory } from '@/lib/supabase-queries'
+import { getCached, setCached } from '@/lib/cache'
 import type { InventoryItem } from '@/types'
 
+const CACHE_KEY = 'inventory'
+
 export function useRealtimeInventory() {
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [inventory, setInventory] = useState<InventoryItem[]>(() => 
+    getCached<InventoryItem[]>(CACHE_KEY) ?? []
+  )
+  const [loading, setLoading] = useState(() => !getCached<InventoryItem[]>(CACHE_KEY))
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
 
-  const fetchInventory = useCallback(async () => {
+  const fetchInventory = useCallback(async (force = false) => {
+    // Check cache first unless forced
+    if (!force) {
+      const cached = getCached<InventoryItem[]>(CACHE_KEY)
+      if (cached) {
+        setInventory(cached)
+        setLoading(false)
+        return
+      }
+    }
+    
     setLoading(true)
     setError(null)
     try {
       const data = await getInventory()
       setInventory(data)
+      setCached(CACHE_KEY, data)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load inventory'
       setError(message)
@@ -34,7 +50,7 @@ export function useRealtimeInventory() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'inventory' },
         () => {
-          fetchInventory()
+          fetchInventory(true) // Force refresh on realtime update
         }
       )
       .subscribe(status => {

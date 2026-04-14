@@ -31,3 +31,6 @@ frontend/out/
 *.pem
 *.tsbuildinfo
 .vercel
+
+# Security documentation - contains sensitive information
+SECURITY_CHECKLIST.md

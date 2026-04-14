@@ -48,6 +48,17 @@ export function exportProductsToExcel(products: Product[], filename = 'talastock
 }
 
 /**
+ * Sanitize user input to prevent XSS attacks
+ */
+function sanitizeString(input: string): string {
+  return input
+    .replace(/[<>'"]/g, '') // Remove HTML/script injection characters
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .trim()
+}
+
+/**
  * Parse an uploaded Excel or CSV file into product rows.
  * Returns { rows, categoryNames } where categoryNames is a deduplicated list
  * of category names found in the file (for auto-creation).
@@ -72,6 +83,12 @@ export interface ParseResult {
 
 export function parseImportFile(file: File): Promise<ParseResult> {
   return new Promise((resolve, reject) => {
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error('File too large. Maximum size is 5MB.'))
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = e => {
       try {
@@ -79,6 +96,12 @@ export function parseImportFile(file: File): Promise<ParseResult> {
         const wb = XLSX.read(data, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
         const raw: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+        // Limit number of rows (prevent DoS)
+        if (raw.length > 1000) {
+          reject(new Error('Too many rows. Maximum is 1000 products per import.'))
+          return
+        }
 
         const rows: ImportRow[] = []
         const errors: { row: number; message: string }[] = []
@@ -90,7 +113,7 @@ export function parseImportFile(file: File): Promise<ParseResult> {
           // Normalize keys (case-insensitive, handle spaces/underscores)
           const norm: Record<string, string> = {}
           Object.entries(r).forEach(([k, v]) => {
-            norm[k.toLowerCase().replace(/[\s_]+/g, '_')] = String(v).trim()
+            norm[k.toLowerCase().replace(/[\s_]+/g, '_')] = sanitizeString(String(v))
           })
 
           const name = norm.name || norm.product_name || norm['product name'] || ''
@@ -99,23 +122,57 @@ export function parseImportFile(file: File): Promise<ParseResult> {
           if (!name) { errors.push({ row: rowNum, message: 'Missing product name' }); return }
           if (!sku) { errors.push({ row: rowNum, message: 'Missing SKU' }); return }
 
+          // Validate name and SKU length
+          if (name.length > 200) { errors.push({ row: rowNum, message: 'Product name too long (max 200 chars)' }); return }
+          if (sku.length > 50) { errors.push({ row: rowNum, message: 'SKU too long (max 50 chars)' }); return }
+
           const price = parseFloat(norm.price || norm['price_(₱)'] || norm['price_(p)'] || '0')
           const cost_price = parseFloat(norm.cost_price || norm['cost_price_(₱)'] || norm['cost_price_(p)'] || '0')
 
-          if (isNaN(price)) { errors.push({ row: rowNum, message: 'Invalid price' }); return }
+          if (isNaN(price) || price < 0) { errors.push({ row: rowNum, message: 'Invalid price' }); return }
+          if (isNaN(cost_price) || cost_price < 0) { errors.push({ row: rowNum, message: 'Invalid cost price' }); return }
 
           const categoryName = (norm.category || '').trim()
-          if (categoryName) categorySet.add(categoryName)
+          if (categoryName) {
+            if (categoryName.length > 100) {
+              errors.push({ row: rowNum, message: 'Category name too long (max 100 chars)' })
+              return
+            }
+            categorySet.add(categoryName)
+          }
+
+          // Validate image URL if provided
+          const imageUrl = norm.image_url || null
+          if (imageUrl) {
+            try {
+              const url = new URL(imageUrl)
+              if (url.protocol !== 'https:') {
+                errors.push({ row: rowNum, message: 'Image URL must use HTTPS' })
+                return
+              }
+            } catch {
+              errors.push({ row: rowNum, message: 'Invalid image URL' })
+              return
+            }
+          }
+
+          const initialQty = parseInt(norm.initial_quantity || norm.stock_quantity || norm.quantity || '0') || 0
+          const threshold = parseInt(norm.low_stock_threshold || norm.threshold || '10') || 10
+
+          if (initialQty < 0 || initialQty > 1000000) {
+            errors.push({ row: rowNum, message: 'Invalid quantity (must be 0-1,000,000)' })
+            return
+          }
 
           rows.push({
-            name,
-            sku,
+            name: sanitizeString(name),
+            sku: sanitizeString(sku),
             price,
-            cost_price: isNaN(cost_price) ? 0 : cost_price,
+            cost_price,
             categoryName: categoryName || undefined,
-            initial_quantity: parseInt(norm.initial_quantity || norm.stock_quantity || norm.quantity || '0') || 0,
-            low_stock_threshold: parseInt(norm.low_stock_threshold || norm.threshold || '10') || 10,
-            image_url: norm.image_url || null,
+            initial_quantity: initialQty,
+            low_stock_threshold: threshold,
+            image_url: imageUrl,
           })
         })
 

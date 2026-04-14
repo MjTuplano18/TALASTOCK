@@ -105,26 +105,30 @@ async function logAICall(params: {
 // ─── Route handler ────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   // ── 1. Auth check ──────────────────────────────────────────────────────────
-  // Verify the bearer token from the Authorization header
+  // CRITICAL: Verify authentication BEFORE any processing
   const authHeader = req.headers.get('authorization')
   const token = authHeader?.replace('Bearer ', '').trim()
 
-  let userId = 'anonymous'
-  if (token) {
-    try {
-      const supabase = getSupabase()
-      const { data: { user } } = await supabase.auth.getUser(token)
-      if (user) userId = user.id
-    } catch {
-      // Token invalid — continue as anonymous but still rate limit by IP
-    }
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 })
   }
 
-  // Require auth
-  if (userId === 'anonymous') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  let userId: string
+  try {
+    const supabase = getSupabase()
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    
+    if (error || !user) {
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 })
+    }
+    
+    userId = user.id
+  } catch (error) {
+    console.error('Auth verification failed:', error)
+    return NextResponse.json({ error: 'Unauthorized - Auth verification failed' }, { status: 401 })
   }
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
+
+  const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
   const rateLimitKey = `ai:${userId}:${ip}`
 
   // ── 2. Rate limit check ────────────────────────────────────────────────────

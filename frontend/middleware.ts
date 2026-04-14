@@ -22,7 +22,25 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json({ error: 'Request too large' }, { status: 413 })
   }
 
-  // ── 3. Auth check ───────────────────────────────────────────────────────────
+  // ── 3. CSRF Protection for state-changing operations ───────────────────────
+  const isStateChanging = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)
+  const isApiRoute = req.nextUrl.pathname.startsWith('/api/')
+  
+  if (isStateChanging && isApiRoute) {
+    const origin = req.headers.get('origin')
+    const host = req.headers.get('host')
+    
+    // Verify origin matches host (prevents CSRF)
+    if (origin && !origin.includes(host || '')) {
+      return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 })
+    }
+    
+    // Require same-site for state-changing operations
+    res.headers.set('X-Content-Type-Options', 'nosniff')
+    res.headers.set('X-Frame-Options', 'DENY')
+  }
+
+  // ── 4. Auth check ───────────────────────────────────────────────────────────
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Plus, Upload, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProductsTable } from '@/components/tables/ProductsTable'
+import { ProductsTableMobile } from '@/components/tables/ProductsTableMobile'
 import { ProductForm } from '@/components/forms/ProductForm'
 import { ProductDrawer } from '@/components/products/ProductDrawer'
 import { CsvImport } from '@/components/products/CsvImport'
@@ -15,6 +16,7 @@ import { RangeInput, type RangeValue } from '@/components/shared/RangeInput'
 import { Pagination } from '@/components/shared/Pagination'
 import { useProducts } from '@/hooks/useProducts'
 import { useCategories } from '@/hooks/useCategories'
+import { useDebounce } from '@/hooks/useDebounce'
 import { exportProductsToExcel } from '@/lib/excel'
 import { getStockStatus } from '@/types'
 import { toast } from 'sonner'
@@ -41,11 +43,14 @@ export default function ProductsPage() {
   const [priceRange, setPriceRange] = useState<RangeValue>({ min: '', max: '' })
   const [stockRange, setStockRange] = useState<RangeValue>({ min: '', max: '' })
 
+  // Debounce search to reduce re-renders (300ms delay)
+  const debouncedSearch = useDebounce(search, 300)
+
   const filtered = useMemo(() => {
     setPage(1)
     return allProducts.filter(p => {
-      if (search) {
-        const q = search.toLowerCase()
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase()
         if (!p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false
       }
       if (categoryFilter && p.category_id !== categoryFilter) return false
@@ -60,11 +65,11 @@ export default function ProductsPage() {
       if (stockRange.max && qty > Number(stockRange.max)) return false
       return true
     })
-  }, [allProducts, search, categoryFilter, statusFilter, priceRange, stockRange])
+  }, [allProducts, debouncedSearch, categoryFilter, statusFilter, priceRange, stockRange])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const hasFilters = search || categoryFilter || statusFilter || priceRange.min || priceRange.max || stockRange.min || stockRange.max
+  const hasFilters = search || categoryFilter || statusFilter || priceRange.min || priceRange.max || stockRange.min || stockRange.min
 
   function clearFilters() {
     setSearch(''); setCategoryFilter(''); setStatusFilter('')
@@ -120,21 +125,24 @@ export default function ProductsPage() {
         <h1 className="text-lg font-medium text-[#7A3E2E]">Products</h1>
         <div className="flex items-center gap-2">
           <button onClick={() => setImportOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
-            <Upload className="w-3.5 h-3.5" />Import
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
+            <Upload className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Import</span>
           </button>
           <button onClick={handleExport} disabled={exporting || filtered.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" />Export{hasFilters ? ` (${filtered.length})` : ''}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-40">
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Export{hasFilters ? ` (${filtered.length})` : ''}</span>
           </button>
           <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
             onClick={() => { setEditTarget(null); setFormOpen(true) }}>
-            <Plus className="w-4 h-4 mr-1" />Add Product
+            <Plus className="w-4 h-4 sm:mr-1" />
+            <span className="hidden sm:inline">Add Product</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search name or SKU…" />
         <FilterSelect value={categoryFilter} onChange={setCategoryFilter} placeholder="All Categories"
           options={categories.map(c => ({ label: c.name, value: c.id }))} />
@@ -144,22 +152,28 @@ export default function ProductsPage() {
             { label: 'Low Stock', value: 'low_stock' },
             { label: 'Out of Stock', value: 'out_of_stock' },
           ]} />
-        <RangeInput value={priceRange} onChange={setPriceRange} label="Price Range" prefix="₱" placeholder="Price" />
-        <RangeInput value={stockRange} onChange={setStockRange} label="Stock Range" placeholder="Stock qty" />
-        {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>}
-        <span className="text-xs text-[#B89080] ml-auto">{filtered.length} of {allProducts.length} products</span>
+        <div className="hidden sm:block">
+          <RangeInput value={priceRange} onChange={setPriceRange} label="Price Range" prefix="₱" placeholder="Price" />
+        </div>
+        <div className="hidden sm:block">
+          <RangeInput value={stockRange} onChange={setStockRange} label="Stock Range" placeholder="Stock qty" />
+        </div>
+        {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline sm:ml-auto">Clear filters</button>}
+        <span className="text-xs text-[#B89080] sm:ml-auto">{filtered.length} of {allProducts.length} products</span>
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
         {loading ? (
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-[#F2C4B0]">
-              {['', '', 'Product Name', 'SKU', 'Category', 'Stock', 'Price', 'Status', ''].map((h, i) => (
-                <th key={i} className="text-left py-3 px-3 text-[#B89080] font-medium">{h}</th>
-              ))}
-            </tr></thead>
-            <tbody><TableSkeleton rows={PAGE_SIZE} cols={9} /></tbody>
-          </table>
+          <div className="hidden md:block">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-[#F2C4B0]">
+                {['', '', 'Product Name', 'SKU', 'Category', 'Stock', 'Price', 'Status', ''].map((h, i) => (
+                  <th key={i} className="text-left py-3 px-3 text-[#B89080] font-medium">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody><TableSkeleton rows={PAGE_SIZE} cols={9} /></tbody>
+            </table>
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             title={hasFilters ? 'No products match your filters' : 'No products yet'}
@@ -173,9 +187,23 @@ export default function ProductsPage() {
           />
         ) : (
           <>
-            <ProductsTable products={paginated} categories={categories} loading={false}
-              onEdit={openEdit} onDelete={deleteProduct} onRowClick={setDrawerProduct}
-              onBulkDelete={bulkDelete} onBulkChangeCategory={bulkChangeCategory} />
+            {/* Desktop table view */}
+            <div className="hidden md:block">
+              <ProductsTable products={paginated} categories={categories} loading={false}
+                onEdit={openEdit} onDelete={deleteProduct} onRowClick={setDrawerProduct}
+                onBulkDelete={bulkDelete} onBulkChangeCategory={bulkChangeCategory} />
+            </div>
+            
+            {/* Mobile card view */}
+            <div className="md:hidden">
+              <ProductsTableMobile
+                products={paginated}
+                onEdit={openEdit}
+                onDelete={deleteProduct}
+                onRowClick={setDrawerProduct}
+              />
+            </div>
+            
             <Pagination page={page} totalPages={totalPages} totalItems={filtered.length}
               pageSize={PAGE_SIZE} onPageChange={setPage} />
           </>

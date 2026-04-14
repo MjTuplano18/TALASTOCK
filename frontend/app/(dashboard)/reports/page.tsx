@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { FileText, Download, BarChart2, Package, TrendingUp, AlertTriangle, Eye } from 'lucide-react'
+import { Download, Package, TrendingUp, Eye } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
 import { useProducts } from '@/hooks/useProducts'
@@ -332,7 +332,7 @@ export default function ReportsPage() {
 
       {/* ── What's included note ── */}
       <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
-        <h3 className="text-xs font-medium text-[#7A3E2E] mb-3">What's included in each report</h3>
+        <h3 className="text-xs font-medium text-[#7A3E2E] mb-3">What&apos;s included in each report</h3>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div>
             <p className="text-xs font-medium text-[#E8896A] mb-1.5">Sales Report PDF</p>
