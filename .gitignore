@@ -34,3 +34,4 @@ frontend/out/
 
 # Security documentation - contains sensitive information
 SECURITY_CHECKLIST.md
+docs/guides/SECURITY_CHECKLIST.md
