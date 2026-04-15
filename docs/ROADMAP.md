@@ -10,6 +10,8 @@
 - [x] Sales recording
 - [x] Categories management
 - [x] Dashboard with charts
+- [x] Transactions page with full history
+- [x] Export functionality (PDF, Excel, CSV)
 
 ### Phase 2: Enterprise Features ✅
 - [x] Security hardening (API keys, CSRF, validation)
@@ -18,6 +20,8 @@
 - [x] Accessibility (WCAG 2.1 AA compliance)
 - [x] Offline support (service worker, sync)
 - [x] Enhanced UX (toasts, empty states, loading)
+- [x] Global date filtering (dashboard analytics)
+- [x] Transaction management (search, filter, export)
 
 ---
 
@@ -110,7 +114,31 @@
 
 ### Medium Term (This Month)
 
-#### 7. **Advanced Features**
+#### 7. **Inventory Import/Export Feature** ⭐ IN PROGRESS
+**Why:** Enable bulk operations and data portability  
+**Status:** Spec complete, ready for implementation  
+**Spec:** `docs/improvements/INVENTORY_IMPORT_EXPORT_SPEC.md`
+
+**Phase 1 (v1 - MVP):**
+- [ ] Category filter for inventory
+- [ ] Export inventory to Excel/CSV (respects filters)
+- [ ] Import inventory from Excel/CSV (bulk quantity updates)
+- [ ] Comprehensive validation and preview
+- [ ] Audit trail in stock_movements
+
+**Phase 2 (v1.5):**
+- [ ] Import with threshold updates
+- [ ] Download import template with examples
+
+**Phase 3 (v2):**
+- [ ] Partial import mode (skip errors)
+- [ ] Dry run mode (preview without saving)
+- [ ] Import history page with rollback
+
+**Time:** ~80 hours total (45h v1, 7h v1.5, 28h v2)  
+**Impact:** Major productivity boost for inventory management
+
+#### 8. **Advanced Features**
 Based on user feedback, consider:
 
 **Reporting & Analytics**
@@ -118,11 +146,9 @@ Based on user feedback, consider:
 - [ ] Sales trends analysis
 - [ ] Inventory forecasting
 - [ ] Profit margin calculator
-- [ ] Export to Excel/CSV
 
 **Inventory Management**
 - [ ] Barcode scanning
-- [ ] Batch operations
 - [ ] Stock alerts via SMS/email
 - [ ] Supplier management
 - [ ] Purchase orders
@@ -137,7 +163,7 @@ Based on user feedback, consider:
 **Time:** 20-30 hours  
 **Impact:** Competitive advantage
 
-#### 8. **Performance Optimization**
+#### 9. **Performance Optimization**
 **Why:** Make it even faster  
 **Tasks:**
 - [ ] Optimize bundle size
@@ -150,7 +176,7 @@ Based on user feedback, consider:
 **Time:** 4-6 hours  
 **Impact:** Better user experience
 
-#### 9. **Multi-User Support**
+#### 10. **Multi-User Support**
 **Why:** Teams need collaboration  
 **Tasks:**
 - [ ] User roles (owner, manager, staff)
@@ -166,7 +192,7 @@ Based on user feedback, consider:
 
 ### Long Term (This Quarter)
 
-#### 10. **Mobile Apps**
+#### 11. **Mobile Apps**
 **Why:** Native app experience  
 **Options:**
 - React Native (reuse code)
@@ -176,7 +202,7 @@ Based on user feedback, consider:
 **Time:** 40-60 hours  
 **Impact:** App store presence
 
-#### 11. **Integrations**
+#### 12. **Integrations**
 **Why:** Connect with other tools  
 **Potential integrations:**
 - [ ] Accounting software (QuickBooks, Xero)
@@ -188,7 +214,7 @@ Based on user feedback, consider:
 **Time:** 20-40 hours per integration  
 **Impact:** Ecosystem play
 
-#### 12. **Enterprise Features**
+#### 13. **Enterprise Features**
 **Why:** Serve larger businesses  
 **Features:**
 - [ ] Multi-location support
@@ -214,14 +240,16 @@ Based on user feedback, consider:
 4. User testing & feedback ⭐⭐
 5. Analytics & monitoring ⭐⭐
 6. User documentation ⭐⭐
-7. Advanced features (based on feedback) ⭐⭐
+7. Inventory import/export (v1 MVP) ⭐⭐
+8. Advanced features (based on feedback) ⭐⭐
 
 ### Nice to Have (This Quarter)
-8. Performance optimization ⭐
-9. Multi-user support ⭐
-10. Mobile apps ⭐
-11. Integrations ⭐
-12. Enterprise features ⭐
+8. Inventory import/export (v1.5 & v2) ⭐
+9. Performance optimization ⭐
+10. Multi-user support ⭐
+11. Mobile apps ⭐
+12. Integrations ⭐
+13. Enterprise features ⭐
 
 ---
 
