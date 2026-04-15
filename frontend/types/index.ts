@@ -149,3 +149,12 @@ export interface APIResponse<T> {
   message: string
   error_code?: string
 }
+
+// POS-specific types
+export interface CartItem {
+  product: Product
+  quantity: number
+  unitPrice: number
+  subtotal: number
+  stockWarning?: boolean
+}

@@ -95,6 +95,11 @@ export default function DashboardPage() {
         {/* Action Buttons Row */}
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangeFilter />
+          <button onClick={() => router.push('/pos')}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs font-medium transition-colors whitespace-nowrap">
+            <ShoppingCart className="w-3.5 h-3.5" />
+            Quick POS
+          </button>
           <button onClick={handleExport} disabled={exporting || loading}
             className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
             <Download className="w-3.5 h-3.5" />
@@ -106,7 +111,7 @@ export default function DashboardPage() {
             <span className="hidden sm:inline">Refresh</span>
           </button>
           <button onClick={() => setSaleFormOpen(true)}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
             <ShoppingCart className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Record Sale</span>
           </button>
