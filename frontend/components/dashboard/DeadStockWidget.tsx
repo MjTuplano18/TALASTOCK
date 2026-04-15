@@ -1,4 +1,4 @@
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Package } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { DeadStockItem } from '@/types'
 
@@ -15,11 +15,12 @@ export function DeadStockWidget({ items, loading }: { items: DeadStockItem[]; lo
 
   if (!items.length) {
     return (
-      <div className="flex items-center gap-2 py-4">
-        <div className="w-6 h-6 rounded-full bg-[#FDE8DF] flex items-center justify-center">
-          <span className="text-[10px] text-[#C1614A]">✓</span>
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mb-3">
+          <Package className="w-6 h-6 text-[#E8896A]" />
         </div>
-        <p className="text-xs text-[#B89080]">No dead stock — all products are moving</p>
+        <p className="text-sm text-[#7A3E2E] font-medium mb-1">No dead stock!</p>
+        <p className="text-xs text-[#B89080]">All products are moving well</p>
       </div>
     )
   }

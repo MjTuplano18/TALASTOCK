@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Clock } from 'lucide-react'
+import { X, Clock, Upload, RotateCcw } from 'lucide-react'
 import { useStockMovements } from '@/hooks/useStockMovements'
 import { formatDateTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,8 @@ const TYPE_CONFIG: Record<StockMovementType, { label: string; bg: string; color:
   sale:       { label: 'Sale',       bg: '#FDECEA', color: '#C05050' },
   adjustment: { label: 'Adjustment', bg: '#F2C4B0', color: '#B89080' },
   return:     { label: 'Return',     bg: '#FDE8DF', color: '#C1614A' },
+  import:     { label: 'Import',     bg: '#E8F5E9', color: '#2E7D32' },
+  rollback:   { label: 'Rollback',   bg: '#FFF3E0', color: '#E65100' },
 }
 
 interface StockHistoryDrawerProps {

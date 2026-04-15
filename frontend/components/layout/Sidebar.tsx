@@ -14,18 +14,20 @@ import {
   LogOut,
   Menu,
   X,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth'
 import { toast } from 'sonner'
 
 const navItems = [
-  { label: 'Dashboard',  href: '/dashboard',  icon: LayoutDashboard },
-  { label: 'Products',   href: '/products',   icon: Package },
-  { label: 'Categories', href: '/categories', icon: Tag },
-  { label: 'Inventory',  href: '/inventory',  icon: Boxes },
-  { label: 'Sales',      href: '/sales',      icon: TrendingUp },
-  { label: 'Reports',    href: '/reports',    icon: FileText },
+  { label: 'Dashboard',     href: '/dashboard',     icon: LayoutDashboard },
+  { label: 'Products',      href: '/products',      icon: Package },
+  { label: 'Categories',    href: '/categories',    icon: Tag },
+  { label: 'Inventory',     href: '/inventory',     icon: Boxes },
+  { label: 'Sales',         href: '/sales',         icon: TrendingUp },
+  { label: 'Transactions',  href: '/transactions',  icon: Receipt },
+  { label: 'Reports',       href: '/reports',       icon: FileText },
 ]
 
 export function Sidebar() {

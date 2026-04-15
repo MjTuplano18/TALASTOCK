@@ -48,10 +48,28 @@ export function AnomalyDetectionCard({ salesChart, topProducts, inventory, loadi
     }
   }, [])
 
+  // Auto-fetch on mount if no cache and has data
+  useEffect(() => {
+    if (!loading && !fetched && salesChart.length >= 3) {
+      fetchAnomalies()
+    }
+  }, [loading, salesChart.length])
+
   async function fetchAnomalies() {
     if (loading || salesChart.length < 3) return
     setFetching(true)
     try {
+      // Check cache first
+      const cached = getAICached(CACHE_KEY)
+      if (cached) {
+        try {
+          setAnomalies(JSON.parse(cached))
+          setFetched(true)
+          setFetching(false)
+          return
+        } catch {}
+      }
+
       const res = await aiPost({
         type: 'anomaly_detection',
         salesChart,
@@ -75,70 +93,86 @@ export function AnomalyDetectionCard({ salesChart, topProducts, inventory, loadi
     }
   }
 
-  // No auto-fetch on load — user must click (per ai-security.md)
-
   if (!configured) return null
 
   return (
-    <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
+    <div className="bg-white rounded-xl border border-[#F2C4B0] p-5 flex flex-col min-h-[320px]">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          <div className="w-6 h-6 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
-            <Zap className="w-3.5 h-3.5 text-[#E8896A]" />
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
+            <Zap className="w-4 h-4 text-[#E8896A]" />
           </div>
-          <span className="text-xs font-medium text-[#7A3E2E]">Anomaly Detection</span>
-          {anomalies.length > 0 && (
-            <span className="text-[10px] bg-[#FDECEA] text-[#C05050] px-1.5 py-0.5 rounded-full font-medium">
-              {anomalies.length} detected
-            </span>
-          )}
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-[#7A3E2E]">Anomaly Detection</span>
+            <span className="text-xs text-[#B89080]">Pattern analysis</span>
+          </div>
         </div>
         <button onClick={fetchAnomalies} disabled={fetching || loading}
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Re-analyze">
-          <RefreshCw className={cn('w-3 h-3', fetching && 'animate-spin')} />
+          <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />
         </button>
       </div>
 
-      {fetching || loading ? (
-        <div className="flex flex-col gap-2">
-          {[1, 2].map(i => (
-            <div key={i} className="h-16 bg-[#FDE8DF] rounded-xl animate-pulse" />
-          ))}
+      {anomalies.length > 0 && (
+        <div className="mb-3 px-3 py-2 bg-[#FDECEA] border border-[#F2C4B0] rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-[#C05050] shrink-0" />
+            <span className="text-xs text-[#C05050] font-medium">
+              {anomalies.length} {anomalies.length === 1 ? 'anomaly' : 'anomalies'} detected
+            </span>
+          </div>
         </div>
-      ) : anomalies.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {anomalies.map((a, i) => {
-            const config = ANOMALY_CONFIG[a.type] ?? ANOMALY_CONFIG.trend
-            const Icon = config.icon
-            return (
-              <div key={i} className={cn('rounded-xl p-3 border border-[#F2C4B0]', config.bg)}>
-                <div className="flex items-start gap-2">
-                  <Icon className={cn('w-3.5 h-3.5 shrink-0 mt-0.5', config.color)} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={cn('text-[10px] font-medium', config.color)}>{config.label}</span>
-                      {a.product && <span className="text-[10px] text-[#7A3E2E]">· {a.product}</span>}
-                      {a.date && <span className="text-[10px] text-[#B89080]">· {a.date}</span>}
+      )}
+
+      <div className="flex-1 overflow-y-auto">
+        {fetching || loading ? (
+          <div className="flex flex-col gap-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 bg-[#FDE8DF] rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : anomalies.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {anomalies.map((a, i) => {
+              const config = ANOMALY_CONFIG[a.type] ?? ANOMALY_CONFIG.trend
+              const Icon = config.icon
+              return (
+                <div key={i} className={cn('rounded-xl p-3 border border-[#F2C4B0] hover:shadow-sm transition-shadow', config.bg)}>
+                  <div className="flex items-start gap-2">
+                    <Icon className={cn('w-4 h-4 shrink-0 mt-0.5', config.color)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn('text-xs font-medium', config.color)}>{config.label}</span>
+                        {a.product && <span className="text-xs text-[#7A3E2E]">· {a.product}</span>}
+                        {a.date && <span className="text-xs text-[#B89080]">· {a.date}</span>}
+                      </div>
+                      <p className="text-sm text-[#7A3E2E] leading-relaxed mb-1">{a.description}</p>
+                      <p className="text-xs text-[#B89080] italic">{a.suggestion}</p>
                     </div>
-                    <p className="text-xs text-[#7A3E2E] leading-relaxed">{a.description}</p>
-                    <p className="text-[10px] text-[#B89080] mt-1 italic">{a.suggestion}</p>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : fetched ? (
-        <div className="flex items-center gap-2 py-2">
-          <div className="w-5 h-5 rounded-full bg-[#FDE8DF] flex items-center justify-center">
-            <span className="text-[10px] text-[#C1614A]">✓</span>
+              )
+            })}
           </div>
-          <p className="text-xs text-[#B89080]">No anomalies detected — everything looks normal.</p>
-        </div>
-      ) : (
-        <p className="text-xs text-[#B89080]">Analyzing sales patterns…</p>
-      )}
+        ) : fetched ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mb-3">
+              <Zap className="w-6 h-6 text-[#E8896A]" />
+            </div>
+            <p className="text-sm text-[#7A3E2E] font-medium mb-1">All clear!</p>
+            <p className="text-xs text-[#B89080]">No anomalies detected — everything looks normal.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mb-3">
+              <Zap className="w-6 h-6 text-[#E8896A]" />
+            </div>
+            <p className="text-sm text-[#7A3E2E] font-medium mb-1">Analyzing patterns...</p>
+            <p className="text-xs text-[#B89080]">Click refresh to detect anomalies</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

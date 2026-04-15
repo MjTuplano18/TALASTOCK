@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/retry'
 import { getCached, setCached } from '@/lib/cache'
@@ -40,6 +40,10 @@ export function useDashboardMetrics() {
   // Get date range from context
   const { startDate, endDate } = useDateRangeQuery()
   
+  // Use ref to store latest date values without causing re-renders
+  const dateRangeRef = useRef({ startDate, endDate })
+  dateRangeRef.current = { startDate, endDate }
+  
   // Initialize from cache if available
   const [metrics, setMetrics] = useState<DashboardMetrics>(() => 
     getCached<DashboardMetrics>(CACHE_KEYS.metrics) ?? DEFAULT_METRICS
@@ -63,23 +67,23 @@ export function useDashboardMetrics() {
     getCached<DeadStockItem[]>(CACHE_KEYS.deadStock) ?? []
   )
   
-  const [loading, setLoading] = useState(() => {
-    // Only show loading if we don't have cached data
-    return !getCached<DashboardMetrics>(CACHE_KEYS.metrics)
-  })
+  const [loading, setLoading] = useState(false) // Start with false, let the effect handle it
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
+  const [isInitialized, setIsInitialized] = useState(false)
 
   const fetchAll = useCallback(async (range: DateRange = dateRange, force = false) => {
+    // Get latest date values from ref
+    const { startDate: currentStartDate, endDate: currentEndDate } = dateRangeRef.current
+    
     // Check cache first unless forced
-    if (!force) {
+    if (!force && isInitialized) {
       const cachedMetrics = getCached<DashboardMetrics>(CACHE_KEYS.metrics)
       const cachedSales = getCached<SalesChartData[]>(CACHE_KEYS.salesChart(range))
       
       if (cachedMetrics && cachedSales) {
         // We have cached data, use it and skip loading
-        setLoading(false)
         return
       }
     }
@@ -89,13 +93,13 @@ export function useDashboardMetrics() {
     try {
       // Wrap all queries with retry logic - pass date range to queries
       const [m, sales, top, revenue, recent, catPerf, dead] = await Promise.all([
-        withRetry(() => getDashboardMetrics(startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getSalesChartData(range, startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getTopProductsData(startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getRevenueChartData(startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getRecentSales(5, startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getCategoryPerformance(startDate, endDate), { maxRetries: 2 }),
-        withRetry(() => getDeadStock(startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getDashboardMetrics(currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getSalesChartData(range, currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getTopProductsData(currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getRevenueChartData(currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getRecentSales(5, currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getCategoryPerformance(currentStartDate, currentEndDate), { maxRetries: 2 }),
+        withRetry(() => getDeadStock(currentStartDate, currentEndDate), { maxRetries: 2 }),
       ])
       
       // Update state
@@ -116,18 +120,35 @@ export function useDashboardMetrics() {
       setCached(CACHE_KEYS.recentSales, recent)
       setCached(CACHE_KEYS.categoryPerf, catPerf)
       setCached(CACHE_KEYS.deadStock, dead)
+      
+      setIsInitialized(true)
     } catch (err) {
       console.error('Dashboard fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
-  }, [dateRange, startDate, endDate])
+  }, [dateRange, isInitialized]) // Only depend on dateRange, not startDate/endDate
 
-  // Refetch when date range changes
+  // Initial load and refetch when date range changes
   useEffect(() => {
-    fetchAll(dateRange, true) // Force refetch when date range changes
-  }, [startDate, endDate, dateRange])
+    // Check if we have cached data
+    const cachedMetrics = getCached<DashboardMetrics>(CACHE_KEYS.metrics)
+    
+    if (cachedMetrics && !isInitialized) {
+      // We have cached data, use it immediately
+      setIsInitialized(true)
+      return
+    }
+    
+    if (!isInitialized) {
+      // First load - fetch data
+      fetchAll(dateRange, false)
+    } else {
+      // Date changed - force refetch
+      fetchAll(dateRange, true)
+    }
+  }, [startDate, endDate, dateRange]) // Remove fetchAll and isInitialized from deps
 
   // Realtime subscriptions with error handling
   useEffect(() => {
@@ -148,7 +169,7 @@ export function useDashboardMetrics() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [fetchAll, dateRange])
+  }, [dateRange, fetchAll]) // fetchAll is now stable
 
   const refresh = useCallback(() => fetchAll(dateRange, true), [fetchAll, dateRange])
 

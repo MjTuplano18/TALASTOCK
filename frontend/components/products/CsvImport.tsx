@@ -6,37 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { parseImportFile, type ImportRow, type ParseResult } from '@/lib/excel'
 import type { ProductCreateWithInventory } from '@/components/forms/ProductForm'
 
+import { generateProductsTemplate } from '@/lib/generate-products-template'
+
 function downloadTemplate() {
-  // Dynamic import to avoid SSR issues
-  import('xlsx').then(XLSX => {
-    const rows = [
-      {
-        name: 'Sample Product',
-        sku: 'PROD-001',
-        price: 100,
-        cost_price: 75,
-        category: 'Electronics',
-        initial_quantity: 50,
-        low_stock_threshold: 10,
-        image_url: '',
-      },
-      {
-        name: 'Another Product',
-        sku: 'PROD-002',
-        price: 250,
-        cost_price: 180,
-        category: 'Chocolates',
-        initial_quantity: 100,
-        low_stock_threshold: 20,
-        image_url: '',
-      },
-    ]
-    const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 16 }, { wch: 18 }, { wch: 30 }]
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Products')
-    XLSX.writeFile(wb, 'talastock-import-template.xlsx')
-  })
+  generateProductsTemplate()
 }
 
 interface CsvImportProps {

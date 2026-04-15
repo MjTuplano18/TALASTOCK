@@ -12,7 +12,7 @@ interface SearchInputProps {
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
   function SearchInput({ value, onChange, placeholder = 'Search…' }, ref) {
     return (
-      <div className="relative" role="search">
+      <div className="relative w-full sm:w-64" role="search">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#B89080] pointer-events-none" aria-hidden="true" />
         <input
           ref={ref}
@@ -21,7 +21,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="w-full pl-8 pr-7 py-1.5 text-sm border border-[#F2C4B0] rounded-lg bg-white text-[#7A3E2E] placeholder:text-[#B89080] focus:outline-none focus:border-[#E8896A] focus:ring-2 focus:ring-[#E8896A]/50"
+          className="w-full h-9 pl-8 pr-7 text-xs border border-[#F2C4B0] rounded-lg bg-white text-[#7A3E2E] placeholder:text-[#B89080] focus:outline-none focus:border-[#E8896A] focus:ring-2 focus:ring-[#E8896A]/50"
         />
         {value && (
           <button

@@ -19,10 +19,12 @@ import { RevenueRadial } from '@/components/dashboard/RevenueRadial'
 import { AiInsightCard } from '@/components/dashboard/AiInsightCard'
 import { SmartReorderCard } from '@/components/dashboard/SmartReorderCard'
 import { AnomalyDetectionCard } from '@/components/dashboard/AnomalyDetectionCard'
+import { DeadStockRecoveryCard } from '@/components/dashboard/DeadStockRecoveryCard'
 import { CategoryPerformanceChart } from '@/components/dashboard/CategoryPerformanceChart'
 import { DeadStockWidget } from '@/components/dashboard/DeadStockWidget'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { exportDashboardPDF } from '@/lib/export-dashboard'
+import { formatCurrency, cn } from '@/lib/utils'
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
 
 const DATE_RANGE_OPTIONS: { label: string; value: DateRange }[] = [
@@ -80,25 +82,32 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-        <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
-        <div className="flex items-center gap-2 overflow-x-auto">
-          <DateRangeFilter />
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
           {lastUpdated && (
-            <span className="text-xs text-[#B89080] hidden lg:block whitespace-nowrap">{timeAgo(lastUpdated)}</span>
+            <span className="text-xs text-[#B89080] hidden lg:inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E8896A] animate-pulse"></span>
+              Updated {timeAgo(lastUpdated)}
+            </span>
           )}
+        </div>
+        
+        {/* Action Buttons Row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <DateRangeFilter />
           <button onClick={handleExport} disabled={exporting || loading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
-            <Download className="w-3 h-3" />
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+            <Download className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Export PDF</span>
           </button>
           <button onClick={refresh} disabled={loading}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
-            <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
           <button onClick={() => setSaleFormOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
-            <ShoppingCart className="w-3 h-3" />
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            <ShoppingCart className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Record Sale</span>
           </button>
         </div>
@@ -200,8 +209,8 @@ export default function DashboardPage() {
         </ChartCard>
       </div>
 
-      {/* Row 6 — AI Features (3 columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 sm:gap-3">
+      {/* Row 6 — AI Features (4 columns) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3">
         <AiInsightCard
           metrics={metrics}
           topProducts={topProductsData}
@@ -219,6 +228,13 @@ export default function DashboardPage() {
           salesChart={salesChartData}
           topProducts={topProductsData}
           inventory={inventory}
+          loading={loading}
+        />
+        <DeadStockRecoveryCard
+          deadStock={deadStock}
+          topProducts={topProductsData}
+          categoryPerformance={categoryPerformance}
+          totalRevenue={metrics.total_sales_revenue}
           loading={loading}
         />
       </div>

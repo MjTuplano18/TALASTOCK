@@ -30,7 +30,7 @@ export interface InventoryItem {
   products?: Product
 }
 
-export type StockMovementType = 'restock' | 'sale' | 'adjustment' | 'return'
+export type StockMovementType = 'restock' | 'sale' | 'adjustment' | 'return' | 'import' | 'rollback'
 
 export interface StockMovement {
   id: string

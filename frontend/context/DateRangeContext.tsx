@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
 
 export type DatePreset = 
   | 'today' 
@@ -106,16 +106,37 @@ function loadSavedPreset(): DatePreset {
     }
   } catch (err) {
     console.error('Failed to load saved date preset:', err)
+    // Clear corrupted data
+    try {
+      localStorage.removeItem('dashboard_date_preset')
+    } catch {
+      // Ignore if can't clear
+    }
   }
   
   return 'last_30_days' // Default
 }
 
 export function DateRangeProvider({ children }: { children: ReactNode }) {
-  const [preset, setPresetState] = useState<DatePreset>(loadSavedPreset)
+  // Always start with default on server, then hydrate from localStorage on client
+  const [preset, setPresetState] = useState<DatePreset>('last_30_days')
   const [dateRange, setDateRangeState] = useState<{ startDate: Date; endDate: Date }>(() => 
-    getDateRangeForPreset(loadSavedPreset())
+    getDateRangeForPreset('last_30_days')
   )
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Load saved preset from localStorage after mount (client-side only)
+  useEffect(() => {
+    if (!isInitialized) {
+      const savedPreset = loadSavedPreset()
+      if (savedPreset !== 'last_30_days') {
+        const range = getDateRangeForPreset(savedPreset)
+        setDateRangeState(range)
+        setPresetState(savedPreset)
+      }
+      setIsInitialized(true)
+    }
+  }, [isInitialized])
 
   // Save preset to localStorage whenever it changes
   useEffect(() => {
@@ -139,16 +160,17 @@ export function DateRangeProvider({ children }: { children: ReactNode }) {
     setPresetState(newPreset)
   }
 
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = {
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+    preset,
+    setDateRange,
+    setPreset,
+  }
+
   return (
-    <DateRangeContext.Provider
-      value={{
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        preset,
-        setDateRange,
-        setPreset,
-      }}
-    >
+    <DateRangeContext.Provider value={contextValue}>
       {children}
     </DateRangeContext.Provider>
   )
@@ -166,10 +188,11 @@ export function useDateRange() {
 export function useDateRangeQuery() {
   const { startDate, endDate } = useDateRange()
   
-  return {
+  // Memoize to prevent unnecessary recalculations
+  return useMemo(() => ({
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     startDateLocal: startDate,
     endDateLocal: endDate,
-  }
+  }), [startDate, endDate])
 }

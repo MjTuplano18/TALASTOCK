@@ -1,23 +1,28 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { AlertTriangle, Plus, Minus, History } from 'lucide-react'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
 import { useInventory } from '@/hooks/useInventory'
 import { useDebounce } from '@/hooks/useDebounce'
 import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm'
 import { StockHistoryDrawer } from '@/components/inventory/StockHistoryDrawer'
+import { CategoryFilter } from '@/components/inventory/CategoryFilter'
+import { ImportModal } from '@/components/inventory/ImportModal'
+import { ExportDropdown } from '@/components/shared/ExportDropdown'
+import { ImportButton } from '@/components/shared/ImportButton'
 import { StockBadge } from '@/components/shared/StockBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { TableSkeleton } from '@/components/shared/LoadingSkeleton'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { FilterSelect } from '@/components/shared/FilterSelect'
 import { Pagination } from '@/components/shared/Pagination'
+import { exportInventoryToExcel, exportInventoryToCSV } from '@/lib/export-inventory'
 import { formatDate } from '@/lib/utils'
 import { getStockStatus } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import type { InventoryItem } from '@/types'
+import type { InventoryItem, Category, Product } from '@/types'
 
 const PAGE_SIZE = 15
 
@@ -63,12 +68,31 @@ function ThresholdCell({ item, onSave }: { item: InventoryItem; onSave: (id: str
 
 export default function InventoryPage() {
   const { inventory, loading, error } = useRealtimeInventory()
-  const { adjustInventory } = useInventory()
+  const { adjustInventory, bulkImportInventory } = useInventory()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [adjustTarget, setAdjustTarget] = useState<InventoryItem | null>(null)
   const [historyItem, setHistoryItem] = useState<InventoryItem | null>(null)
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  
+  // Fetch categories and products for import
+  const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+
+  useEffect(() => {
+    async function fetchData() {
+      const [categoriesRes, productsRes] = await Promise.all([
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('products').select('*, categories(*)').eq('is_active', true),
+      ])
+      
+      if (categoriesRes.data) setCategories(categoriesRes.data)
+      if (productsRes.data) setProducts(productsRes.data as any)
+    }
+    fetchData()
+  }, [])
 
   // Debounce search to reduce re-renders
   const debouncedSearch = useDebounce(search, 300)
@@ -86,14 +110,17 @@ export default function InventoryPage() {
         const status = getStockStatus(item.quantity, item.low_stock_threshold)
         if (status !== statusFilter) return false
       }
+      if (categoryFilter) {
+        if (item.products?.category_id !== categoryFilter) return false
+      }
       return true
     })
-  }, [inventory, debouncedSearch, statusFilter])
+  }, [inventory, debouncedSearch, statusFilter, categoryFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const lowStockItems = inventory.filter(i => getStockStatus(i.quantity, i.low_stock_threshold) !== 'in_stock')
-  const hasFilters = search || statusFilter
+  const hasFilters = search || statusFilter || categoryFilter
 
   async function handleThresholdSave(productId: string, threshold: number) {
     const { error } = await supabase
@@ -128,22 +155,33 @@ export default function InventoryPage() {
             { label: 'Low Stock', value: 'low_stock' },
             { label: 'Out of Stock', value: 'out_of_stock' },
           ]} />
+        <CategoryFilter value={categoryFilter} onChange={setCategoryFilter} categories={categories} />
         {hasFilters && (
-          <button onClick={() => { setSearch(''); setStatusFilter('') }}
+          <button onClick={() => { setSearch(''); setStatusFilter(''); setCategoryFilter('') }}
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
-        <span className="text-xs text-[#B89080] ml-auto">{filtered.length} of {inventory.length} items</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-[#B89080]">{filtered.length} of {inventory.length} items</span>
+          <ImportButton onClick={() => setImportModalOpen(true)} />
+          <ExportDropdown 
+            onExportExcel={() => exportInventoryToExcel(filtered)}
+            onExportCSV={() => exportInventoryToCSV(filtered)}
+            disabled={filtered.length === 0}
+            itemCount={filtered.length}
+            isFiltered={hasFilters}
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
         {loading ? (
           <table className="w-full text-sm">
             <thead><tr className="border-b border-[#F2C4B0]">
-              {['Product', 'SKU', 'Qty', 'Threshold', 'Status', 'Last Updated', ''].map((h, i) => (
+              {['Product', 'SKU', 'Category', 'Qty', 'Threshold', 'Status', 'Last Updated', ''].map((h, i) => (
                 <th key={i} className="text-left py-3 px-4 text-[#B89080] font-medium">{h}</th>
               ))}
             </tr></thead>
-            <tbody><TableSkeleton rows={PAGE_SIZE} cols={7} /></tbody>
+            <tbody><TableSkeleton rows={PAGE_SIZE} cols={8} /></tbody>
           </table>
         ) : filtered.length === 0 ? (
           <EmptyState title={hasFilters ? 'No items match your filters' : 'No inventory records'}
@@ -155,6 +193,7 @@ export default function InventoryPage() {
                 <tr className="border-b border-[#F2C4B0]">
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">Product</th>
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">SKU</th>
+                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Category</th>
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">Qty</th>
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium" title="Click to edit">
                     Threshold ✎
@@ -169,6 +208,7 @@ export default function InventoryPage() {
                   <tr key={item.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
                     <td className="py-3 px-4 font-medium text-[#7A3E2E]">{item.products?.name ?? '—'}</td>
                     <td className="py-3 px-4 text-[#B89080] font-mono text-xs">{item.products?.sku ?? '—'}</td>
+                    <td className="py-3 px-4 text-[#7A3E2E]">{item.products?.categories?.name ?? '—'}</td>
                     <td className="py-3 px-4 text-[#7A3E2E]">{item.quantity}</td>
                     <td className="py-3 px-4">
                       <ThresholdCell item={item} onSave={handleThresholdSave} />
@@ -214,6 +254,18 @@ export default function InventoryPage() {
       )}
 
       <StockHistoryDrawer item={historyItem} onClose={() => setHistoryItem(null)} />
+      
+      <ImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => {
+          setImportModalOpen(false)
+          // Inventory will auto-refresh via realtime
+        }}
+        products={products}
+        inventory={inventory}
+        onImport={bulkImportInventory}
+      />
     </div>
   )
 }

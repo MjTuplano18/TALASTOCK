@@ -109,12 +109,12 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       <button
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'flex items-center gap-2 pl-3 pr-2.5 py-1.5 text-sm border rounded-lg bg-white transition-colors whitespace-nowrap',
+          'flex items-center gap-2 h-9 pl-3 pr-2.5 text-xs border rounded-lg bg-white transition-colors whitespace-nowrap',
           hasValue ? 'border-[#E8896A] text-[#7A3E2E]' : 'border-[#F2C4B0] text-[#B89080] hover:border-[#E8896A]'
         )}
       >
         <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-        {label}
+        <span className="font-medium">{label}</span>
         {hasValue ? (
           <span onClick={e => { e.stopPropagation(); onChange({ from: null, to: null }) }}
             className="ml-1 text-[#B89080] hover:text-[#7A3E2E] cursor-pointer">
@@ -126,7 +126,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-[#F2C4B0] rounded-xl shadow-lg p-4 w-[300px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-[#F2C4B0] rounded-xl shadow-lg p-4 w-[300px] max-w-[calc(100vw-2rem)]">
 
           {/* Presets */}
           <div className="flex flex-wrap gap-1.5 mb-3">

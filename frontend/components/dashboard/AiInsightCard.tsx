@@ -30,6 +30,13 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
     if (cached) setInsight(cached)
   }, [])
 
+  // Auto-fetch on mount if no cache
+  useEffect(() => {
+    if (!loading && !insight && !error) {
+      fetchInsight()
+    }
+  }, [loading])
+
   async function fetchInsight() {
     setFetching(true)
     setError(null)
@@ -63,13 +70,16 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
   if (!configured) return null
 
   return (
-    <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-md bg-[#FDE8DF] flex items-center justify-center">
-            <Sparkles className="w-3 h-3 text-[#E8896A]" />
+    <div className="bg-white rounded-xl border border-[#F2C4B0] p-5 flex flex-col min-h-[320px]">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-[#E8896A]" />
           </div>
-          <span className="text-xs font-medium text-[#7A3E2E]">AI Insight</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-[#7A3E2E]">AI Insight</span>
+            <span className="text-xs text-[#B89080]">Business intelligence</span>
+          </div>
         </div>
         <button
           onClick={fetchInsight}
@@ -77,29 +87,48 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Refresh insight"
         >
-          <RefreshCw className={cn('w-3 h-3', fetching && 'animate-spin')} />
+          <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />
         </button>
       </div>
 
-      {fetching ? (
-        <div className="flex flex-col gap-1.5">
-          <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-full" />
-          <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-4/5" />
-          <div className="h-2.5 bg-[#FDE8DF] rounded animate-pulse w-3/5" />
-        </div>
-      ) : error ? (
-        <p className="text-xs text-[#C05050]">{error}</p>
-      ) : insight ? (
-        <p className="text-xs text-[#7A3E2E] leading-relaxed">{insight}</p>
-      ) : (
-        <button
-          onClick={fetchInsight}
-          disabled={loading}
-          className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors disabled:opacity-40"
-        >
-          Click to generate insight →
-        </button>
-      )}
+      <div className="flex-1 flex items-center justify-center">
+        {fetching ? (
+          <div className="flex flex-col gap-2 w-full">
+            <div className="h-3 bg-[#FDE8DF] rounded animate-pulse w-full" />
+            <div className="h-3 bg-[#FDE8DF] rounded animate-pulse w-5/6" />
+            <div className="h-3 bg-[#FDE8DF] rounded animate-pulse w-4/6" />
+            <div className="h-3 bg-[#FDE8DF] rounded animate-pulse w-5/6" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-[#C05050] mb-2">{error}</p>
+            <button
+              onClick={fetchInsight}
+              className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors"
+            >
+              Try again →
+            </button>
+          </div>
+        ) : insight ? (
+          <div className="w-full">
+            <p className="text-sm text-[#7A3E2E] leading-relaxed">{insight}</p>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-[#E8896A]" />
+            </div>
+            <p className="text-sm text-[#7A3E2E] font-medium mb-1">Generating insights...</p>
+            <button
+              onClick={fetchInsight}
+              disabled={loading}
+              className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors disabled:opacity-40"
+            >
+              Click to generate →
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Upload, Download } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProductsTable } from '@/components/tables/ProductsTable'
 import { ProductsTableMobile } from '@/components/tables/ProductsTableMobile'
@@ -14,6 +14,8 @@ import { SearchInput } from '@/components/shared/SearchInput'
 import { FilterSelect } from '@/components/shared/FilterSelect'
 import { RangeInput, type RangeValue } from '@/components/shared/RangeInput'
 import { Pagination } from '@/components/shared/Pagination'
+import { ExportDropdown } from '@/components/shared/ExportDropdown'
+import { ImportButton } from '@/components/shared/ImportButton'
 import { useProducts } from '@/hooks/useProducts'
 import { useCategories } from '@/hooks/useCategories'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -34,7 +36,6 @@ export default function ProductsPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [drawerProduct, setDrawerProduct] = useState<Product | null>(null)
   const [importOpen, setImportOpen] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [page, setPage] = useState(1)
 
   const [search, setSearch] = useState('')
@@ -83,13 +84,13 @@ export default function ProductsPage() {
     setFormLoading(false)
   }
 
-  async function handleExport() {
-    setExporting(true)
-    try {
-      exportProductsToExcel(filtered, hasFilters ? 'talastock-products-filtered' : 'talastock-products')
-    } finally {
-      setExporting(false)
-    }
+  async function handleExportExcel() {
+    exportProductsToExcel(filtered, hasFilters ? 'talastock-products-filtered' : 'talastock-products')
+  }
+
+  async function handleExportCSV() {
+    // CSV export logic (can be added later if needed)
+    exportProductsToExcel(filtered, hasFilters ? 'talastock-products-filtered' : 'talastock-products')
   }
 
   async function handleImport(products: (ProductCreateWithInventory & { _categoryName?: string })[], categoryNames: string[]) {
@@ -124,16 +125,14 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Products</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => setImportOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Import</span>
-          </button>
-          <button onClick={handleExport} disabled={exporting || filtered.length === 0}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-40">
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Export{hasFilters ? ` (${filtered.length})` : ''}</span>
-          </button>
+          <ImportButton onClick={() => setImportOpen(true)} className="hidden sm:flex" />
+          <ExportDropdown 
+            onExportExcel={handleExportExcel}
+            onExportCSV={handleExportCSV}
+            disabled={filtered.length === 0}
+            itemCount={filtered.length}
+            isFiltered={hasFilters}
+          />
           <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
             onClick={() => { setEditTarget(null); setFormOpen(true) }}>
             <Plus className="w-4 h-4 sm:mr-1" />
