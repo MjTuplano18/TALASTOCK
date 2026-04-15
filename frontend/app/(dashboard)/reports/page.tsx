@@ -86,9 +86,9 @@ function ReportCard({ title, description, icon, children, onExport, exporting, e
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ReportsPage() {
-  const { allSales } = useSales()
-  const { inventory } = useRealtimeInventory()
-  const { allProducts } = useProducts()
+  const { allSales, loading: salesLoading } = useSales()
+  const { inventory, loading: inventoryLoading } = useRealtimeInventory()
+  const { allProducts, loading: productsLoading } = useProducts()
   const { categories } = useCategories()
 
   const [salesDateRange, setSalesDateRange] = useState<DateRange>({ from: null, to: null })
@@ -328,6 +328,7 @@ export default function ReportsPage() {
         period={salesDateRange.from
           ? `${salesDateRange.from.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} – ${(salesDateRange.to ?? new Date()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
           : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        loading={productsLoading || inventoryLoading || salesLoading}
       />
 
       {/* ── What's included note ── */}

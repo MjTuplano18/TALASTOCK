@@ -59,22 +59,24 @@ export function CategoriesTable({ categories, onUpdate, onDelete }: CategoriesTa
               <td className="py-3 px-4 text-[#7A3E2E]">{category.name}</td>
               <td className="py-3 px-4 text-[#B89080]">{formatDate(category.created_at)}</td>
               <td className="py-3 px-4">
-                <div className="flex items-center justify-end gap-1">
+                <div className="flex items-center justify-end gap-1.5">
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 w-8 p-0 text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF]"
+                    className="h-8 px-2.5 text-[#7A3E2E] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors"
                     onClick={() => setEditTarget(category)}
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="w-3.5 h-3.5 mr-1" />
+                    <span className="text-xs">Edit</span>
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 w-8 p-0 text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA]"
+                    className="h-8 px-2.5 text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
                     onClick={() => setDeleteTarget(category)}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    <span className="text-xs">Delete</span>
                   </Button>
                 </div>
               </td>

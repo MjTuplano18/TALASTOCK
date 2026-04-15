@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/retry'
 import { getCached, setCached } from '@/lib/cache'
+import { useDateRangeQuery } from '@/context/DateRangeContext'
 import {
   getDashboardMetrics,
   getSalesChartData,
@@ -36,6 +37,9 @@ const CACHE_KEYS = {
 }
 
 export function useDashboardMetrics() {
+  // Get date range from context
+  const { startDate, endDate } = useDateRangeQuery()
+  
   // Initialize from cache if available
   const [metrics, setMetrics] = useState<DashboardMetrics>(() => 
     getCached<DashboardMetrics>(CACHE_KEYS.metrics) ?? DEFAULT_METRICS
@@ -83,15 +87,15 @@ export function useDashboardMetrics() {
     setLoading(true)
     setError(null)
     try {
-      // Wrap all queries with retry logic
+      // Wrap all queries with retry logic - pass date range to queries
       const [m, sales, top, revenue, recent, catPerf, dead] = await Promise.all([
-        withRetry(() => getDashboardMetrics(), { maxRetries: 2 }),
-        withRetry(() => getSalesChartData(range), { maxRetries: 2 }),
-        withRetry(() => getTopProductsData(), { maxRetries: 2 }),
-        withRetry(() => getRevenueChartData(), { maxRetries: 2 }),
-        withRetry(() => getRecentSales(5), { maxRetries: 2 }),
-        withRetry(() => getCategoryPerformance(), { maxRetries: 2 }),
-        withRetry(() => getDeadStock(), { maxRetries: 2 }),
+        withRetry(() => getDashboardMetrics(startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getSalesChartData(range, startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getTopProductsData(startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getRevenueChartData(startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getRecentSales(5, startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getCategoryPerformance(startDate, endDate), { maxRetries: 2 }),
+        withRetry(() => getDeadStock(startDate, endDate), { maxRetries: 2 }),
       ])
       
       // Update state
@@ -118,12 +122,12 @@ export function useDashboardMetrics() {
     } finally {
       setLoading(false)
     }
-  }, [dateRange])
+  }, [dateRange, startDate, endDate])
 
   // Refetch when date range changes
   useEffect(() => {
-    fetchAll(dateRange)
-  }, [dateRange])
+    fetchAll(dateRange, true) // Force refetch when date range changes
+  }, [startDate, endDate, dateRange])
 
   // Realtime subscriptions with error handling
   useEffect(() => {

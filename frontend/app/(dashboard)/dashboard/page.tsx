@@ -23,7 +23,7 @@ import { CategoryPerformanceChart } from '@/components/dashboard/CategoryPerform
 import { DeadStockWidget } from '@/components/dashboard/DeadStockWidget'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { exportDashboardPDF } from '@/lib/export-dashboard'
-import { formatCurrency, cn } from '@/lib/utils'
+import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
 
 const DATE_RANGE_OPTIONS: { label: string; value: DateRange }[] = [
   { label: '7d', value: '7d' },
@@ -82,6 +82,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
         <div className="flex items-center gap-2 overflow-x-auto">
+          <DateRangeFilter />
           {lastUpdated && (
             <span className="text-xs text-[#B89080] hidden lg:block whitespace-nowrap">{timeAgo(lastUpdated)}</span>
           )}
