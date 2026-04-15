@@ -270,38 +270,61 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border-[#F2C4B0]">
         <DialogHeader>
-          <DialogTitle className="text-[#7A3E2E]">
-            {step === 'upload' && 'Import Inventory'}
-            {step === 'parsing' && 'Parsing File...'}
-            {step === 'preview' && 'Preview Import'}
-            {step === 'executing' && 'Importing...'}
-            {step === 'complete' && 'Import Complete'}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="text-sm font-medium text-[#7A3E2E]">Import</DialogTitle>
+              <p className="text-xs text-[#B89080] mt-0.5">
+                {step === 'upload' && 'Import inventory quantities and thresholds'}
+                {step === 'parsing' && 'Parsing and validating file...'}
+                {step === 'preview' && 'Review changes before importing'}
+                {step === 'executing' && (dryRun ? 'Running dry run...' : 'Importing inventory...')}
+                {step === 'complete' && (dryRun ? 'Dry run completed successfully' : 'Import completed successfully')}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="space-y-4 mt-2">
           {/* Upload Step */}
           {step === 'upload' && (
             <div className="space-y-4">
-              <FileUploader onFileSelect={handleFileSelect} />
-              
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadTemplate}
-                  className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Template
-                </Button>
+              {/* Download Template */}
+              <div className="bg-[#FDF6F0] rounded-xl p-4 border border-[#F2C4B0]">
+                <div className="flex items-start gap-3">
+                  <Download className="w-5 h-5 text-[#E8896A] shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-[#7A3E2E] mb-1">
+                      Download Template First
+                    </h3>
+                    <p className="text-xs text-[#B89080] mb-3">
+                      Use our template to ensure your data is formatted correctly. 
+                      The template includes instructions and sample data.
+                    </p>
+                    <button
+                      onClick={handleDownloadTemplate}
+                      className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#E8896A] text-xs text-[#E8896A] hover:bg-[#FDE8DF] transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download Template
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-3 pt-4 border-t border-[#F2C4B0]">
+              {/* Upload Area */}
+              <div>
+                <label className="block text-xs font-medium text-[#7A3E2E] mb-2">
+                  Upload Inventory Data
+                </label>
+                <FileUploader onFileSelect={handleFileSelect} />
+              </div>
+
+              {/* Import Options */}
+              <div className="space-y-3 pt-2 border-t border-[#F2C4B0]">
                 <div>
-                  <label className="text-sm font-medium text-[#7A3E2E] mb-2 block">
+                  <label className="text-xs font-medium text-[#7A3E2E] mb-2 block">
                     Import Mode
                   </label>
                   <div className="flex gap-3">
@@ -313,7 +336,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
                         onChange={(e) => setMode(e.target.value as 'replace' | 'add')}
                         className="text-[#E8896A]"
                       />
-                      <span className="text-sm text-[#7A3E2E]">Replace (set to value)</span>
+                      <span className="text-xs text-[#7A3E2E]">Replace (set to value)</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -323,7 +346,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
                         onChange={(e) => setMode(e.target.value as 'replace' | 'add')}
                         className="text-[#E8896A]"
                       />
-                      <span className="text-sm text-[#7A3E2E]">Add (add to current)</span>
+                      <span className="text-xs text-[#7A3E2E]">Add (add to current)</span>
                     </label>
                   </div>
                 </div>
@@ -335,7 +358,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
                     onChange={(e) => setDryRun(e.target.checked)}
                     className="rounded text-[#E8896A]"
                   />
-                  <span className="text-sm text-[#7A3E2E]">Dry Run (preview only, don't save)</span>
+                  <span className="text-xs text-[#7A3E2E]">Dry Run (preview only, don't save)</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -345,7 +368,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
                     onChange={(e) => setPartialImport(e.target.checked)}
                     className="rounded text-[#E8896A]"
                   />
-                  <span className="text-sm text-[#7A3E2E]">Partial Import (skip errors, import valid rows)</span>
+                  <span className="text-xs text-[#7A3E2E]">Partial Import (skip errors, import valid rows)</span>
                 </label>
               </div>
             </div>
@@ -363,8 +386,8 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
           {step === 'preview' && validation && (
             <div className="space-y-4">
               {dryRun && (
-                <div className="bg-[#FFF9E6] border border-[#E8896A] rounded-xl p-3 flex items-center gap-2">
-                  <span className="text-sm font-medium text-[#7A3E2E]">
+                <div className="bg-[#FFF3E0] border border-[#F2C4B0] rounded-xl p-3 flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#E65100]">
                     🔍 DRY RUN MODE - No changes will be saved
                   </span>
                 </div>
@@ -384,7 +407,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
           {step === 'executing' && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-[#E8896A] animate-spin mb-4" />
-              <p className="text-sm text-[#7A3E2E]">
+              <p className="text-xs text-[#7A3E2E]">
                 {dryRun ? 'Running dry run...' : 'Importing inventory...'}
               </p>
             </div>
@@ -393,11 +416,11 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
           {/* Complete Step */}
           {step === 'complete' && importResult && (
             <div className="flex flex-col items-center justify-center py-12">
-              <CheckCircle className="w-12 h-12 text-green-600 mb-4" />
-              <h3 className="text-lg font-medium text-[#7A3E2E] mb-2">
+              <CheckCircle className="w-12 h-12 text-[#C1614A] mb-4" />
+              <h3 className="text-sm font-medium text-[#7A3E2E] mb-2">
                 {dryRun ? 'Dry Run Complete' : 'Import Complete'}
               </h3>
-              <p className="text-sm text-[#B89080] mb-4">
+              <p className="text-xs text-[#B89080] mb-4">
                 {importResult.imported} rows {dryRun ? 'would be' : 'were'} imported
                 {importResult.skipped > 0 && `, ${importResult.skipped} skipped`}
               </p>
@@ -412,31 +435,29 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-4 border-t border-[#F2C4B0]">
-          <Button
-            variant="outline"
+          <button
             onClick={onClose}
             disabled={step === 'parsing' || step === 'executing'}
-            className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50"
           >
             {step === 'complete' ? 'Close' : 'Cancel'}
-          </Button>
+          </button>
 
           {step === 'preview' && (
             <div className="flex gap-2">
-              <Button
-                variant="outline"
+              <button
                 onClick={() => setStep('upload')}
-                className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+                className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors"
               >
                 Back
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={handleConfirmImport}
                 disabled={!canConfirm}
-                className="bg-[#E8896A] hover:bg-[#C1614A] text-white"
+                className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors disabled:opacity-50"
               >
                 {dryRun ? 'Run Dry Run' : 'Confirm Import'}
-              </Button>
+              </button>
             </div>
           )}
         </div>

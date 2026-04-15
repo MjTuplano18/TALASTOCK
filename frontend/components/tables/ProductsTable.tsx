@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { FilterSelect } from '@/components/shared/FilterSelect'
 import { formatCurrency } from '@/lib/utils'
 import { getStockStatus } from '@/types'
+import { HighlightText } from '@/components/shared/HighlightText'
 import type { Product } from '@/types'
 import type { Category } from '@/types'
 
@@ -26,6 +27,7 @@ interface ProductsTableProps {
   products: Product[]
   categories?: Category[]
   loading?: boolean
+  searchQuery?: string
   onEdit: (product: Product) => void
   onDelete: (id: string) => Promise<unknown>
   onRowClick?: (product: Product) => void
@@ -40,7 +42,7 @@ function SortIcon({ sorted }: { sorted: false | 'asc' | 'desc' }) {
 }
 
 export function ProductsTable({
-  products, categories = [], loading, onEdit, onDelete, onRowClick,
+  products, categories = [], loading, searchQuery = '', onEdit, onDelete, onRowClick,
   onBulkDelete, onBulkChangeCategory,
 }: ProductsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
@@ -101,7 +103,11 @@ export function ProductsTable({
           Product Name <SortIcon sorted={column.getIsSorted()} />
         </button>
       ),
-      cell: ({ row }) => <span className="font-medium text-[#7A3E2E]">{row.original.name}</span>,
+      cell: ({ row }) => (
+        <span className="font-medium text-[#7A3E2E]">
+          <HighlightText text={row.original.name} highlight={searchQuery} />
+        </span>
+      ),
     },
     {
       accessorKey: 'sku',
@@ -111,7 +117,11 @@ export function ProductsTable({
           SKU <SortIcon sorted={column.getIsSorted()} />
         </button>
       ),
-      cell: ({ row }) => <span className="text-[#B89080] font-mono text-xs">{row.original.sku}</span>,
+      cell: ({ row }) => (
+        <span className="text-[#B89080] font-mono text-xs">
+          <HighlightText text={row.original.sku} highlight={searchQuery} />
+        </span>
+      ),
     },
     {
       id: 'category',

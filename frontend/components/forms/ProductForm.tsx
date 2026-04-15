@@ -239,15 +239,15 @@ export function ProductForm({
           </div>
 
           <div className="flex justify-end gap-2 mt-1">
-            <Button type="button" variant="outline"
-              className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+            <button type="button"
+              className="h-8 px-3 text-xs border border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] rounded-lg transition-colors disabled:opacity-50"
               onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
-            </Button>
-            <Button type="submit" disabled={loading}
-              className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0">
+            </button>
+            <button type="submit" disabled={loading}
+              className="h-8 px-3 text-xs bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50">
               {loading ? 'Saving…' : isEdit ? 'Save changes' : 'Create product'}
-            </Button>
+            </button>
           </div>
         </form>
       </DialogContent>

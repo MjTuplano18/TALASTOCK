@@ -16,6 +16,8 @@ const movementTypeConfig: Record<StockMovementType, { label: string; bg: string;
   sale:       { label: 'Sale',       bg: '#FDECEA', color: '#C05050' },
   adjustment: { label: 'Adjustment', bg: '#F2C4B0', color: '#B89080' },
   return:     { label: 'Return',     bg: '#FDE8DF', color: '#C1614A' },
+  import:     { label: 'Import',     bg: '#E8F5E9', color: '#2E7D32' },
+  rollback:   { label: 'Rollback',   bg: '#FFF3E0', color: '#E65100' },
 }
 
 interface StockMovementTableProps {
@@ -27,51 +29,68 @@ export function StockMovementTable({ movements, loading }: StockMovementTablePro
   const columns: ColumnDef<StockMovement>[] = [
     {
       id: 'type',
-      header: () => <span className="text-[#B89080] font-medium">Type</span>,
+      header: () => <span className="text-[#B89080] font-medium text-xs">Type</span>,
       cell: ({ row }) => {
-        const config = movementTypeConfig[row.original.type]
+        const config = movementTypeConfig[row.original.type] || {
+          label: row.original.type,
+          bg: '#F5F5F5',
+          color: '#666666'
+        }
         return (
           <span
-            className="text-xs font-medium px-2 py-1 rounded-full"
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
             style={{ background: config.bg, color: config.color }}
           >
             {config.label}
           </span>
         )
       },
+      size: 80,
     },
     {
       id: 'product',
-      header: () => <span className="text-[#B89080] font-medium">Product</span>,
+      header: () => <span className="text-[#B89080] font-medium text-xs">Product</span>,
       cell: ({ row }) => (
-        <div>
-          <p className="text-sm text-[#7A3E2E]">{row.original.products?.name ?? '—'}</p>
+        <div className="min-w-0">
+          <p className="text-xs text-[#7A3E2E] truncate">{row.original.products?.name ?? '—'}</p>
           {row.original.products?.sku && (
-            <p className="text-xs text-[#B89080] font-mono">{row.original.products.sku}</p>
+            <p className="text-[10px] text-[#B89080] font-mono truncate">{row.original.products.sku}</p>
           )}
         </div>
       ),
+      size: 120,
     },
     {
       accessorKey: 'quantity',
-      header: () => <span className="text-[#B89080] font-medium">Quantity</span>,
+      header: () => <span className="text-[#B89080] font-medium text-xs">Qty</span>,
       cell: ({ row }) => (
-        <span className="text-[#7A3E2E]">{row.original.quantity}</span>
+        <span className="text-xs text-[#7A3E2E] font-medium">{row.original.quantity}</span>
       ),
+      size: 50,
     },
     {
       accessorKey: 'note',
-      header: () => <span className="text-[#B89080] font-medium">Note</span>,
+      header: () => <span className="text-[#B89080] font-medium text-xs">Note</span>,
       cell: ({ row }) => (
-        <span className="text-[#B89080] text-xs">{row.original.note ?? '—'}</span>
+        <span className="text-[10px] text-[#B89080] line-clamp-2" title={row.original.note || undefined}>
+          {row.original.note ?? '—'}
+        </span>
       ),
+      size: 150,
     },
     {
       accessorKey: 'created_at',
-      header: () => <span className="text-[#B89080] font-medium">Date</span>,
-      cell: ({ row }) => (
-        <span className="text-[#B89080] text-xs">{formatDateTime(row.original.created_at)}</span>
-      ),
+      header: () => <span className="text-[#B89080] font-medium text-xs">Date</span>,
+      cell: ({ row }) => {
+        const date = new Date(row.original.created_at)
+        return (
+          <div className="text-[10px] text-[#B89080] whitespace-nowrap">
+            <div>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+            <div>{date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+        )
+      },
+      size: 70,
     },
   ]
 
@@ -91,33 +110,43 @@ export function StockMovementTable({ movements, loading }: StockMovementTablePro
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        {table.getHeaderGroups().map(headerGroup => (
-          <tr key={headerGroup.id} className="border-b border-[#F2C4B0]">
-            {headerGroup.headers.map(header => (
-              <th key={header.id} className="text-left py-3 px-4">
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      <tbody>
-        {loading ? (
-          <TableSkeleton rows={5} cols={columns.length} />
-        ) : (
-          table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} className="py-3 px-4">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+    <div className="overflow-x-auto -mx-5 px-5">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id} className="border-b border-[#F2C4B0]">
+              {headerGroup.headers.map(header => (
+                <th 
+                  key={header.id} 
+                  className="text-left py-2 px-2 first:pl-0 last:pr-0"
+                  style={{ width: header.column.columnDef.size }}
+                >
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
               ))}
             </tr>
-          ))
-        )}
-      </tbody>
-    </table>
+          ))}
+        </thead>
+        <tbody>
+          {loading ? (
+            <TableSkeleton rows={5} cols={columns.length} />
+          ) : (
+            table.getRowModel().rows.map(row => (
+              <tr key={row.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
+                {row.getVisibleCells().map(cell => (
+                  <td 
+                    key={cell.id} 
+                    className="py-2 px-2 first:pl-0 last:pr-0"
+                    style={{ width: cell.column.columnDef.size }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   )
 }

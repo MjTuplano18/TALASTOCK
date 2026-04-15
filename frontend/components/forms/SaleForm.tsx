@@ -195,16 +195,14 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
               <p className="text-xs text-[#C05050]">{errors.items.root.message}</p>
             )}
 
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
-              className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] self-start"
+              className="flex items-center gap-1.5 h-8 px-3 text-xs border border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] rounded-lg transition-colors self-start"
               onClick={() => append({ product_id: '', quantity: 1, unit_price: 0 })}
             >
-              <Plus className="w-3 h-3 mr-1" />
+              <Plus className="w-3 h-3" />
               Add Item
-            </Button>
+            </button>
           </div>
 
           {/* Total */}
@@ -225,22 +223,21 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+              className="h-8 px-3 text-xs border border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] rounded-lg transition-colors disabled:opacity-50"
               onClick={() => { reset(); onOpenChange(false) }}
               disabled={isSubmitting}
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={isSubmitting || anyZeroQuantity}
-              className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+              className="h-8 px-3 text-xs bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Recording…' : 'Record Sale'}
-            </Button>
+            </button>
           </div>
         </form>
       </DialogContent>

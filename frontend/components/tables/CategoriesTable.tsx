@@ -5,16 +5,18 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { CategoryForm } from '@/components/forms/CategoryForm'
-import { formatDate } from '@/lib/utils'
+import { HighlightText } from '@/components/shared/HighlightText'
+import { RelativeTime } from '@/components/shared/RelativeTime'
 import type { Category } from '@/types'
 
 interface CategoriesTableProps {
   categories: Category[]
+  searchQuery?: string
   onUpdate: (id: string, name: string) => Promise<unknown>
   onDelete: (id: string) => Promise<unknown>
 }
 
-export function CategoriesTable({ categories, onUpdate, onDelete }: CategoriesTableProps) {
+export function CategoriesTable({ categories, searchQuery = '', onUpdate, onDelete }: CategoriesTableProps) {
   const [editTarget, setEditTarget] = useState<Category | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -56,8 +58,12 @@ export function CategoriesTable({ categories, onUpdate, onDelete }: CategoriesTa
         <tbody>
           {categories.map(category => (
             <tr key={category.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
-              <td className="py-3 px-4 text-[#7A3E2E]">{category.name}</td>
-              <td className="py-3 px-4 text-[#B89080]">{formatDate(category.created_at)}</td>
+              <td className="py-3 px-4 text-[#7A3E2E]">
+                <HighlightText text={category.name} highlight={searchQuery} />
+              </td>
+              <td className="py-3 px-4 text-[#B89080]">
+                <RelativeTime date={category.created_at} />
+              </td>
               <td className="py-3 px-4">
                 <div className="flex items-center justify-end gap-1.5">
                   <Button

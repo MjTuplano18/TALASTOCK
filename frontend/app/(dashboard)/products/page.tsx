@@ -122,23 +122,8 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Products</h1>
-        <div className="flex items-center gap-2">
-          <ImportButton onClick={() => setImportOpen(true)} className="hidden sm:flex" />
-          <ExportDropdown 
-            onExportExcel={handleExportExcel}
-            onExportCSV={handleExportCSV}
-            disabled={filtered.length === 0}
-            itemCount={filtered.length}
-            isFiltered={hasFilters}
-          />
-          <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
-            onClick={() => { setEditTarget(null); setFormOpen(true) }}>
-            <Plus className="w-4 h-4 sm:mr-1" />
-            <span className="hidden sm:inline">Add Product</span>
-          </Button>
-        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-3">
@@ -157,8 +142,23 @@ export default function ProductsPage() {
         <div className="hidden sm:block">
           <RangeInput value={stockRange} onChange={setStockRange} label="Stock Range" placeholder="Stock qty" />
         </div>
-        {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline sm:ml-auto">Clear filters</button>}
-        <span className="text-xs text-[#B89080] sm:ml-auto">{filtered.length} of {allProducts.length} products</span>
+        {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>}
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-[#B89080]">{filtered.length} of {allProducts.length} products</span>
+          <ImportButton onClick={() => setImportOpen(true)} className="hidden sm:flex" />
+          <ExportDropdown 
+            onExportExcel={handleExportExcel}
+            onExportCSV={handleExportCSV}
+            disabled={filtered.length === 0}
+            itemCount={filtered.length}
+            isFiltered={hasFilters}
+          />
+          <button onClick={() => { setEditTarget(null); setFormOpen(true) }}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Add Product</span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
@@ -178,10 +178,10 @@ export default function ProductsPage() {
             title={hasFilters ? 'No products match your filters' : 'No products yet'}
             description={hasFilters ? 'Try adjusting your filters.' : 'Add your first product to get started.'}
             action={!hasFilters ? (
-              <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+              <button className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors"
                 onClick={() => { setEditTarget(null); setFormOpen(true) }}>
-                <Plus className="w-4 h-4 mr-1" />Add Product
-              </Button>
+                <Plus className="w-3.5 h-3.5" />Add Product
+              </button>
             ) : undefined}
           />
         ) : (
@@ -189,6 +189,7 @@ export default function ProductsPage() {
             {/* Desktop table view */}
             <div className="hidden md:block">
               <ProductsTable products={paginated} categories={categories} loading={false}
+                searchQuery={debouncedSearch}
                 onEdit={openEdit} onDelete={deleteProduct} onRowClick={setDrawerProduct}
                 onBulkDelete={bulkDelete} onBulkChangeCategory={bulkChangeCategory} />
             </div>

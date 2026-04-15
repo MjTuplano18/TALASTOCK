@@ -1,23 +1,26 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { ShoppingCart, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { SearchInput } from '@/components/shared/SearchInput'
+import { ImportButton } from '@/components/shared/ImportButton'
 import { RangeInput, type RangeValue } from '@/components/shared/RangeInput'
 import { DateRangePicker, type DateRange } from '@/components/shared/DateRangePicker'
 import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { SaleForm } from '@/components/forms/SaleForm'
+import { SalesImportModal } from '@/components/sales/SalesImportModal'
 import { useSales } from '@/hooks/useSales'
 import { useProducts } from '@/hooks/useProducts'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import type { Sale } from '@/types'
+import type { Sale, Product } from '@/types'
+import type { ParsedSaleItem } from '@/lib/import-sales-parser'
 
 const PAGE_SIZE = 15
 
@@ -63,10 +66,24 @@ export default function SalesPage() {
   const { allSales, loading, error, createSale, refetch } = useSales()
   const { allProducts } = useProducts()
   const [saleFormOpen, setSaleFormOpen] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [voidTarget, setVoidTarget] = useState<Sale | null>(null)
   const [voiding, setVoiding] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+
+  // Fetch products for import
+  useEffect(() => {
+    async function fetchProducts() {
+      const { data } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+      if (data) setProducts(data)
+    }
+    fetchProducts()
+  }, [])
 
   const [search, setSearch] = useState('')
   const [amountRange, setAmountRange] = useState<RangeValue>({ min: '', max: '' })
@@ -122,14 +139,79 @@ export default function SalesPage() {
     setExpandedId(prev => prev === id ? null : id)
   }
 
+  async function handleImportSales(sales: ParsedSaleItem[]) {
+    let successCount = 0
+    let failCount = 0
+
+    for (const sale of sales) {
+      try {
+        // Find product by SKU or name
+        const product = products.find(p => 
+          p.sku.toLowerCase() === sale.sku.toLowerCase() ||
+          p.name.toLowerCase() === sale.productName.toLowerCase()
+        )
+
+        if (!product) {
+          console.warn(`Product not found: ${sale.productName} (${sale.sku})`)
+          failCount++
+          continue
+        }
+
+        // Create timestamp
+        const timestamp = sale.time 
+          ? `${sale.date}T${sale.time}`
+          : `${sale.date}T12:00:00`
+
+        // Insert sale
+        const { data: saleData, error: saleError } = await supabase
+          .from('sales')
+          .insert({
+            total_amount: sale.totalAmount,
+            notes: sale.notes || `Imported: ${sale.productName}`,
+            created_at: timestamp
+          })
+          .select()
+          .single()
+
+        if (saleError) throw saleError
+
+        // Insert sale item
+        const { error: itemError } = await supabase
+          .from('sale_items')
+          .insert({
+            sale_id: saleData.id,
+            product_id: product.id,
+            quantity: sale.quantity,
+            unit_price: sale.unitPrice
+          })
+
+        if (itemError) throw itemError
+
+        // Note: We don't adjust inventory for historical imports
+        // This is intentional - users should adjust inventory separately if needed
+
+        successCount++
+      } catch (error) {
+        console.error('Failed to import sale:', error)
+        failCount++
+      }
+    }
+
+    if (successCount > 0) {
+      await refetch()
+    }
+
+    if (failCount === 0) {
+      toast.success(`Successfully imported ${successCount} sales`)
+    } else {
+      toast.warning(`Imported ${successCount} sales, ${failCount} failed`)
+    }
+  }
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Sales</h1>
-        <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
-          onClick={() => setSaleFormOpen(true)}>
-          <ShoppingCart className="w-4 h-4 mr-2" />Record Sale
-        </Button>
       </div>
 
       {error && <div className="text-sm text-[#C05050] mb-3">{error}</div>}
@@ -142,9 +224,17 @@ export default function SalesPage() {
           <button onClick={() => { setSearch(''); setAmountRange({ min: '', max: '' }); setDateRange({ from: null, to: null }) }}
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
-        <span className="text-xs text-[#B89080] ml-auto">
-          {filtered.length} sales · {formatCurrency(totalFiltered)}
-        </span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-[#B89080]">
+            {filtered.length} sales · {formatCurrency(totalFiltered)}
+          </span>
+          <ImportButton onClick={() => setImportModalOpen(true)} />
+          <button onClick={() => setSaleFormOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            <ShoppingCart className="w-3.5 h-3.5" />
+            Record Sale
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
@@ -159,10 +249,10 @@ export default function SalesPage() {
             title={hasFilters ? 'No sales match your filters' : 'No sales yet'}
             description={hasFilters ? 'Try adjusting your filters.' : 'Record your first sale to get started.'}
             action={!hasFilters ? (
-              <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+              <button className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors"
                 onClick={() => setSaleFormOpen(true)}>
-                <ShoppingCart className="w-4 h-4 mr-2" />Record Sale
-              </Button>
+                <ShoppingCart className="w-3.5 h-3.5" />Record Sale
+              </button>
             ) : undefined}
           />
         ) : (
@@ -222,6 +312,13 @@ export default function SalesPage() {
 
       <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen}
         products={allProducts} onSubmit={createSale} />
+
+      <SalesImportModal
+        open={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImport={handleImportSales}
+        products={products}
+      />
 
       <ConfirmDialog
         open={!!voidTarget}

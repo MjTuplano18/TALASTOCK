@@ -36,20 +36,20 @@ export default function CategoriesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-lg font-medium text-[#7A3E2E]">Categories</h1>
-          <p className="text-xs text-[#B89080] mt-0.5">Organize your products into categories</p>
-        </div>
-        <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
-          onClick={() => setFormOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" />Add Category
-        </Button>
+      <div className="mb-4">
+        <h1 className="text-lg font-medium text-[#7A3E2E]">Categories</h1>
       </div>
 
       <div className="flex items-center gap-2 mb-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search categories…" />
-        <span className="text-xs text-[#B89080] ml-auto">{filtered.length} categories</span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="text-xs text-[#B89080]">{filtered.length} categories</span>
+          <button onClick={() => setFormOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
+            <Plus className="w-3.5 h-3.5" />
+            Add Category
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
@@ -60,15 +60,15 @@ export default function CategoriesPage() {
             title={search ? 'No categories match your search' : 'No categories yet'}
             description={search ? 'Try a different search term.' : 'Create categories to organize your products.'}
             action={!search ? (
-              <Button className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+              <button className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors"
                 onClick={() => setFormOpen(true)}>
-                <Plus className="w-4 h-4 mr-1" />Add Category
-              </Button>
+                <Plus className="w-3.5 h-3.5" />Add Category
+              </button>
             ) : undefined}
           />
         ) : (
           <>
-            <CategoriesTable categories={paginated} onUpdate={updateCategory} onDelete={deleteCategory} />
+            <CategoriesTable categories={paginated} searchQuery={search} onUpdate={updateCategory} onDelete={deleteCategory} />
             <Pagination page={page} totalPages={totalPages} totalItems={filtered.length}
               pageSize={PAGE_SIZE} onPageChange={setPage} />
           </>

@@ -139,16 +139,16 @@ export function InventoryAdjustmentForm({ open, onOpenChange, item, onSubmit }: 
           </div>
 
           <div className="flex gap-2">
-            <Button type="button" variant="outline"
-              className="flex-1 border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+            <button type="button"
+              className="flex-1 h-8 px-3 text-xs border border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] rounded-lg transition-colors disabled:opacity-50"
               onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !reason}
-              className={cn('flex-1 text-white border-0',
+            </button>
+            <button type="submit" disabled={isSubmitting || !reason}
+              className={cn('flex-1 h-8 px-3 text-xs text-white rounded-lg transition-colors disabled:opacity-50',
                 mode === 'restock' ? 'bg-[#E8896A] hover:bg-[#C1614A]' : 'bg-[#C05050] hover:bg-[#A03030]')}>
               {isSubmitting ? 'Saving…' : mode === 'restock' ? 'Add Stock' : 'Remove Stock'}
-            </Button>
+            </button>
           </div>
         </form>
       </DialogContent>

@@ -5,6 +5,8 @@ import { Eye, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
 import { SearchInput } from '@/components/shared/SearchInput'
+import { HighlightText } from '@/components/shared/HighlightText'
+import { RelativeTime } from '@/components/shared/RelativeTime'
 import { useDateRangeQuery } from '@/context/DateRangeContext'
 import { formatCurrency, cn } from '@/lib/utils'
 import { TransactionDetailsDrawer } from '@/components/transactions/TransactionDetailsDrawer'
@@ -169,23 +171,11 @@ export default function TransactionsPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <div className="text-xs text-[#7A3E2E]">
-                            {new Date(sale.created_at).toLocaleDateString('en-PH', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </div>
-                          <div className="text-xs text-[#B89080]">
-                            {new Date(sale.created_at).toLocaleTimeString('en-PH', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
+                          <RelativeTime date={sale.created_at} />
                         </td>
                         <td className="py-3 px-4">
                           <div className="text-xs text-[#7A3E2E]">
-                            {firstProduct}{moreItems}
+                            <HighlightText text={`${firstProduct}${moreItems}`} highlight={searchQuery} />
                           </div>
                           <div className="text-xs text-[#B89080]">
                             {itemCount} {itemCount === 1 ? 'item' : 'items'}
@@ -229,14 +219,7 @@ export default function TransactionsPage() {
                           #{sale.id.slice(0, 8).toUpperCase()}
                         </p>
                         <p className="text-xs text-[#B89080] mt-0.5">
-                          {new Date(sale.created_at).toLocaleDateString('en-PH', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })} • {new Date(sale.created_at).toLocaleTimeString('en-PH', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
+                          <RelativeTime date={sale.created_at} />
                         </p>
                       </div>
                       <span className="text-sm font-medium text-[#7A3E2E]">
@@ -244,7 +227,7 @@ export default function TransactionsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-[#7A3E2E] mb-2">
-                      {firstProduct}{moreItems}
+                      <HighlightText text={`${firstProduct}${moreItems}`} highlight={searchQuery} />
                     </p>
                     <button
                       onClick={() => handleViewDetails(sale)}
