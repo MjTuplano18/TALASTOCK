@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { toast } from 'sonner'
+import { toast as enhancedToast } from '@/lib/toast'
 import {
   getProducts,
   createProduct as createProductQuery,
@@ -69,10 +69,10 @@ export function useProducts() {
       const updated = [product, ...allProducts]
       setAllProducts(updated)
       setCached(CACHE_KEY, updated)
-      if (!silent) toast.success('Product created')
+      if (!silent) enhancedToast.success('Product created')
       return product
     } catch (err) {
-      if (!silent) toast.error(err instanceof Error ? err.message : 'Failed to create product')
+      if (!silent) enhancedToast.error(err instanceof Error ? err.message : 'Failed to create product')
       return null
     }
   }
@@ -87,7 +87,7 @@ export function useProducts() {
       const final = allProducts.map(p => (p.id === id ? updated : p))
       setAllProducts(final)
       setCached(CACHE_KEY, final)
-      toast.success('Product updated')
+      enhancedToast.success('Product updated')
       return updated
     } catch (err) {
       if (previous) {
@@ -95,29 +95,52 @@ export function useProducts() {
         setAllProducts(reverted)
         setCached(CACHE_KEY, reverted)
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to update product')
+      enhancedToast.error(err instanceof Error ? err.message : 'Failed to update product')
       return null
     }
   }
 
   async function deleteProduct(id: string): Promise<boolean> {
     const previous = allProducts.find(p => p.id === id)
+    if (!previous) return false
+
+    // Optimistically remove from UI
     const optimistic = allProducts.filter(p => p.id !== id)
     setAllProducts(optimistic)
     setCached(CACHE_KEY, optimistic)
-    try {
-      await deleteProductQuery(id)
-      toast.success('Product deleted')
-      return true
-    } catch (err) {
-      if (previous) {
-        const reverted = [previous, ...allProducts.filter(p => p.id !== id)]
-        setAllProducts(reverted)
-        setCached(CACHE_KEY, reverted)
+
+    // Track if deletion was undone
+    let undone = false
+
+    // Show toast with undo option (5 seconds to undo)
+    enhancedToast.success(`${previous.name} deleted`, {
+      duration: 5000,
+      onUndo: () => {
+        undone = true
+        // Restore the product immediately
+        const restored = [previous, ...allProducts.filter(p => p.id !== id)]
+        setAllProducts(restored)
+        setCached(CACHE_KEY, restored)
+        enhancedToast.success('Product restored')
+      },
+    })
+
+    // Wait for the toast duration, then actually delete if not undone
+    setTimeout(async () => {
+      if (!undone) {
+        try {
+          await deleteProductQuery(id)
+        } catch (err) {
+          // If deletion fails, restore the product
+          const reverted = [previous, ...allProducts.filter(p => p.id !== id)]
+          setAllProducts(reverted)
+          setCached(CACHE_KEY, reverted)
+          enhancedToast.error(err instanceof Error ? err.message : 'Failed to delete product')
+        }
       }
-      toast.error(err instanceof Error ? err.message : 'Failed to delete product')
-      return false
-    }
+    }, 5000)
+
+    return true
   }
 
   async function bulkDelete(ids: string[]): Promise<void> {
@@ -126,9 +149,9 @@ export function useProducts() {
     setCached(CACHE_KEY, optimistic)
     try {
       await Promise.all(ids.map(id => deleteProductQuery(id)))
-      toast.success(`${ids.length} products deleted`)
+      enhancedToast.success(`${ids.length} products deleted`)
     } catch (err) {
-      toast.error('Failed to delete some products')
+      enhancedToast.error('Failed to delete some products')
       fetchProducts(true)
     }
   }
@@ -137,9 +160,9 @@ export function useProducts() {
     try {
       await Promise.all(ids.map(id => updateProductQuery(id, { category_id: categoryId })))
       await fetchProducts(true)
-      toast.success(`Category updated for ${ids.length} products`)
+      enhancedToast.success(`Category updated for ${ids.length} products`)
     } catch (err) {
-      toast.error('Failed to update categories')
+      enhancedToast.error('Failed to update categories')
     }
   }
 
