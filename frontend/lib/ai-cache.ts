@@ -2,6 +2,11 @@
  * Persistent AI response cache using localStorage.
  * Survives page navigation and browser refresh.
  * Falls back to in-memory if localStorage is unavailable (SSR).
+ * 
+ * Strategy:
+ * - On page load: Use cached response (no API call, saves tokens)
+ * - On manual refresh: Force new API call, bypass cache
+ * - Cache duration: 30 minutes (reasonable for business data)
  */
 
 const PREFIX = 'talastock_ai_'
@@ -45,10 +50,17 @@ export function clearAICache(): void {
   } catch {}
 }
 
-// TTLs
+export function clearAICacheKey(key: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(PREFIX + key)
+  } catch {}
+}
+
+// TTLs - Increased to 30 minutes to save API tokens
 export const AI_TTL = {
-  INSIGHT:   5  * 60 * 1000,  // 5 minutes
-  REORDER:   10 * 60 * 1000,  // 10 minutes
+  INSIGHT:   30 * 60 * 1000,  // 30 minutes
+  REORDER:   30 * 60 * 1000,  // 30 minutes
   REPORT:    30 * 60 * 1000,  // 30 minutes
-  ANOMALY:   2  * 60 * 1000,  // 2 minutes
+  ANOMALY:   30 * 60 * 1000,  // 30 minutes
 }

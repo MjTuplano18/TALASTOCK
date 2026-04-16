@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Lightbulb, RefreshCw, TrendingDown, DollarSign } from 'lucide-react'
 import { cn, formatCurrency } from '@/lib/utils'
 import { aiPost } from '@/lib/ai-fetch'
-import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import { getAICached, setAICached, clearAICacheKey, AI_TTL } from '@/lib/ai-cache'
 import type { DeadStockItem, TopProductData, CategoryPerformance } from '@/types'
 
 const CACHE_KEY = 'talastock:ai:dead_stock_recovery'
@@ -62,23 +62,32 @@ export function DeadStockRecoveryCard({
   // Auto-fetch on mount if no cache and has dead stock
   useEffect(() => {
     if (!loading && !fetched && deadStock.length > 0) {
-      fetchAnalysis()
+      fetchAnalysis(false)
     }
   }, [loading, deadStock.length])
 
-  async function fetchAnalysis() {
+  function handleRefresh() {
+    fetchAnalysis(true) // Force refresh, bypass cache
+  }
+
+  async function fetchAnalysis(forceRefresh = false) {
     if (loading || deadStock.length === 0) return
     setFetching(true)
     try {
-      // Check cache first
-      const cached = getAICached(CACHE_KEY)
-      if (cached) {
-        try {
-          setAnalysis(JSON.parse(cached))
-          setFetched(true)
-          setFetching(false)
-          return
-        } catch {}
+      // If force refresh, clear cache first
+      if (forceRefresh) {
+        clearAICacheKey(CACHE_KEY)
+      } else {
+        // Check cache first
+        const cached = getAICached(CACHE_KEY)
+        if (cached) {
+          try {
+            setAnalysis(JSON.parse(cached))
+            setFetched(true)
+            setFetching(false)
+            return
+          } catch {}
+        }
       }
 
       const res = await aiPost({
@@ -124,7 +133,7 @@ export function DeadStockRecoveryCard({
             <span className="text-xs text-[#B89080]">AI-powered strategies</span>
           </div>
         </div>
-        <button onClick={fetchAnalysis} disabled={fetching || loading || deadStock.length === 0}
+        <button onClick={handleRefresh} disabled={fetching || loading || deadStock.length === 0}
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Refresh analysis">
           <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />

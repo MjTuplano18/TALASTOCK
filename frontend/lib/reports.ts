@@ -362,3 +362,220 @@ export function generateInventoryReport(inventory: InventoryItem[]): void {
 
   doc.save(`talastock-inventory-report-${now.toISOString().slice(0, 10)}.pdf`)
 }
+
+// ─── PROFIT & LOSS REPORT ─────────────────────────────────────────────────────
+
+export function generateProfitLossReport(
+  sales: Sale[],
+  products: Array<{ id: string; name: string; cost_price: number; category_id: string | null; categories?: { name: string } | null }>,
+  dateRange?: { from: string; to: string }
+): void {
+  const doc = new jsPDF()
+  const now = new Date()
+
+  // Filter sales by date range
+  let filtered = sales
+  if (dateRange?.from) filtered = filtered.filter(s => s.created_at >= dateRange.from)
+  if (dateRange?.to) filtered = filtered.filter(s => s.created_at <= dateRange.to + 'T23:59:59')
+
+  // Calculate metrics
+  const totalRevenue = filtered.reduce((s, sale) => s + sale.total_amount, 0)
+  const totalDiscounts = filtered.reduce((s, sale) => s + (sale.discount_amount ?? 0), 0)
+  const netRevenue = totalRevenue - totalDiscounts
+
+  // Calculate COGS
+  const cogs = filtered.reduce((s, sale) => {
+    return s + (sale.sale_items?.reduce((itemSum, item) => {
+      const product = products.find(p => p.id === item.product_id)
+      const costPrice = product?.cost_price ?? 0
+      return itemSum + (item.quantity * costPrice)
+    }, 0) ?? 0)
+  }, 0)
+
+  const grossProfit = totalRevenue - cogs
+  const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0
+  const netProfit = netRevenue - cogs
+  const netMargin = netRevenue > 0 ? (netProfit / netRevenue) * 100 : 0
+
+  let y = pageHeader(doc, 'Profit & Loss Report', 'Financial Performance Report')
+
+  // Period
+  doc.setFontSize(8)
+  doc.setTextColor(...C.muted)
+  if (dateRange?.from && dateRange?.to) {
+    doc.text(`Period: ${dateStr(dateRange.from)} to ${dateStr(dateRange.to)}`, 14, y)
+  } else {
+    doc.text(`Period: All time  |  ${filtered.length} transactions`, 14, y)
+  }
+  y += 10
+
+  // ── Summary KPI boxes ──
+  y = sectionTitle(doc, '1. Financial Summary', y)
+
+  const kpis = [
+    { label: 'Total Revenue', value: money(totalRevenue) },
+    { label: 'Cost of Goods Sold', value: money(cogs) },
+    { label: 'Gross Profit', value: money(grossProfit) },
+    { label: 'Net Profit', value: money(netProfit) },
+  ]
+  const kW = 43
+  kpis.forEach((k, i) => {
+    const x = 14 + i * (kW + 2)
+    doc.setFillColor(...C.white)
+    doc.setDrawColor(...C.border)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(x, y, kW, 18, 2, 2, 'FD')
+    doc.setFillColor(...C.accent)
+    doc.roundedRect(x, y, 2.5, 18, 1, 1, 'F')
+    doc.setFontSize(6.5)
+    doc.setTextColor(...C.muted)
+    doc.text(k.label, x + 5, y + 6)
+    doc.setFontSize(k.value.length > 12 ? 8 : 10)
+    doc.setTextColor(...C.brand)
+    doc.setFont('helvetica', 'bold')
+    doc.text(k.value, x + 5, y + 14)
+    doc.setFont('helvetica', 'normal')
+  })
+  y += 26
+
+  // ── Income Statement ──
+  y = checkBreak(doc, y, 60)
+  y = sectionTitle(doc, '2. Income Statement', y)
+
+  // Revenue section
+  doc.setFontSize(8)
+  doc.setTextColor(...C.brand)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Revenue', 17, y)
+  doc.setFont('helvetica', 'normal')
+  y += 7
+
+  doc.setTextColor(...C.dark)
+  doc.text('Total Sales Revenue', 20, y)
+  doc.text(money(totalRevenue), 165, y)
+  y += 7
+
+  if (totalDiscounts > 0) {
+    doc.setTextColor(...C.muted)
+    doc.text('Less: Discounts Given', 20, y)
+    doc.text(`(${money(totalDiscounts)})`, 165, y)
+    y += 7
+  }
+
+  // Net Revenue
+  doc.setFillColor(...C.soft)
+  doc.rect(14, y - 4, 182, 8, 'F')
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...C.brand)
+  doc.text('Net Revenue', 17, y)
+  doc.text(money(netRevenue), 165, y)
+  doc.setFont('helvetica', 'normal')
+  y += 12
+
+  // Cost section
+  doc.setFontSize(8)
+  doc.setTextColor(...C.brand)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Cost of Goods Sold', 17, y)
+  doc.setFont('helvetica', 'normal')
+  y += 7
+
+  doc.setTextColor(...C.dark)
+  doc.text('Total COGS', 20, y)
+  doc.text(money(cogs), 165, y)
+  y += 10
+
+  // Gross Profit
+  doc.setFillColor(...C.soft)
+  doc.rect(14, y - 4, 182, 8, 'F')
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...C.brand)
+  doc.text('Gross Profit', 17, y)
+  doc.text(money(grossProfit), 165, y)
+  doc.setFont('helvetica', 'normal')
+  y += 7
+
+  doc.setFontSize(7)
+  doc.setTextColor(...C.muted)
+  doc.text(`Gross Margin: ${grossMargin.toFixed(1)}%`, 20, y)
+  y += 12
+
+  // Net Profit (highlighted)
+  doc.setFillColor(...C.accent)
+  doc.rect(14, y - 4, 182, 10, 'F')
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...C.white)
+  doc.text('NET PROFIT', 17, y + 1)
+  doc.text(money(netProfit), 165, y + 1)
+  doc.setFont('helvetica', 'normal')
+  y += 10
+
+  doc.setFontSize(7)
+  doc.setTextColor(...C.white)
+  doc.text(`Net Margin: ${netMargin.toFixed(1)}%`, 20, y - 2)
+  y += 12
+
+  // ── Category Breakdown ──
+  if (filtered.length > 0) {
+    y = checkBreak(doc, y, 40)
+    y = sectionTitle(doc, '3. Breakdown by Category', y)
+
+    // Calculate category metrics
+    const categoryMap: Record<string, { revenue: number; cogs: number; units: number }> = {}
+    
+    filtered.forEach(sale => {
+      sale.sale_items?.forEach(item => {
+        const product = products.find(p => p.id === item.product_id)
+        const categoryName = product?.categories?.name ?? 'Uncategorized'
+        
+        if (!categoryMap[categoryName]) {
+          categoryMap[categoryName] = { revenue: 0, cogs: 0, units: 0 }
+        }
+        
+        categoryMap[categoryName].revenue += item.subtotal
+        categoryMap[categoryName].cogs += item.quantity * (product?.cost_price ?? 0)
+        categoryMap[categoryName].units += item.quantity
+      })
+    })
+
+    y = tableHead(doc, [
+      { label: 'Category', x: 17 },
+      { label: 'Units Sold', x: 80 },
+      { label: 'Revenue', x: 115 },
+      { label: 'COGS', x: 145 },
+      { label: 'Gross Profit', x: 170 },
+    ], y)
+
+    Object.entries(categoryMap)
+      .sort((a, b) => b[1].revenue - a[1].revenue)
+      .forEach(([name, data], i) => {
+        y = checkBreak(doc, y, 8)
+        const profit = data.revenue - data.cogs
+        y = tableRow(doc, [
+          { text: name.length > 25 ? name.slice(0, 23) + '...' : name, x: 17 },
+          { text: String(data.units), x: 80 },
+          { text: money(data.revenue), x: 115 },
+          { text: money(data.cogs), x: 145 },
+          { text: money(profit), x: 170 },
+        ], y, i % 2 === 0)
+      })
+
+    // Total row
+    doc.setFillColor(...C.soft)
+    doc.rect(14, y - 4, 182, 8, 'F')
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...C.brand)
+    doc.text('TOTAL', 17, y)
+    doc.text(money(totalRevenue), 115, y)
+    doc.text(money(cogs), 145, y)
+    doc.text(money(grossProfit), 170, y)
+    doc.setFont('helvetica', 'normal')
+  }
+
+  pageFooter(doc)
+  doc.save(`talastock-profit-loss-report-${now.toISOString().slice(0, 10)}.pdf`)
+}

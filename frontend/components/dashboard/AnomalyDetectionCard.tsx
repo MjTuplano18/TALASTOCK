@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Zap, RefreshCw, TrendingDown, TrendingUp, AlertTriangle, BarChart2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { aiPost } from '@/lib/ai-fetch'
-import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import { getAICached, setAICached, clearAICacheKey, AI_TTL } from '@/lib/ai-cache'
 import type { SalesChartData, TopProductData, InventoryItem } from '@/types'
 
 const CACHE_KEY = 'talastock:ai:anomalies'
@@ -51,23 +51,32 @@ export function AnomalyDetectionCard({ salesChart, topProducts, inventory, loadi
   // Auto-fetch on mount if no cache and has data
   useEffect(() => {
     if (!loading && !fetched && salesChart.length >= 3) {
-      fetchAnomalies()
+      fetchAnomalies(false)
     }
   }, [loading, salesChart.length])
 
-  async function fetchAnomalies() {
+  function handleRefresh() {
+    fetchAnomalies(true) // Force refresh, bypass cache
+  }
+
+  async function fetchAnomalies(forceRefresh = false) {
     if (loading || salesChart.length < 3) return
     setFetching(true)
     try {
-      // Check cache first
-      const cached = getAICached(CACHE_KEY)
-      if (cached) {
-        try {
-          setAnomalies(JSON.parse(cached))
-          setFetched(true)
-          setFetching(false)
-          return
-        } catch {}
+      // If force refresh, clear cache first
+      if (forceRefresh) {
+        clearAICacheKey(CACHE_KEY)
+      } else {
+        // Check cache first
+        const cached = getAICached(CACHE_KEY)
+        if (cached) {
+          try {
+            setAnomalies(JSON.parse(cached))
+            setFetched(true)
+            setFetching(false)
+            return
+          } catch {}
+        }
       }
 
       const res = await aiPost({
@@ -107,7 +116,7 @@ export function AnomalyDetectionCard({ salesChart, topProducts, inventory, loadi
             <span className="text-xs text-[#B89080]">Pattern analysis</span>
           </div>
         </div>
-        <button onClick={fetchAnomalies} disabled={fetching || loading}
+        <button onClick={handleRefresh} disabled={fetching || loading}
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Re-analyze">
           <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />

@@ -23,11 +23,15 @@ interface StockHistoryDrawerProps {
 
 export function StockHistoryDrawer({ item, onClose }: StockHistoryDrawerProps) {
   const [mounted, setMounted] = useState(false)
+  const [typeFilter, setTypeFilter] = useState<StockMovementType | ''>('')
   const { movements, loading } = useStockMovements(item?.product_id)
 
   useEffect(() => {
     if (item) setTimeout(() => setMounted(true), 10)
-    else setMounted(false)
+    else {
+      setMounted(false)
+      setTypeFilter('') // Reset filter when closing
+    }
   }, [item])
 
   useEffect(() => {
@@ -37,6 +41,11 @@ export function StockHistoryDrawer({ item, onClose }: StockHistoryDrawerProps) {
   }, [onClose])
 
   if (!item) return null
+
+  // Filter movements by type
+  const filteredMovements = typeFilter 
+    ? movements.filter(m => m.type === typeFilter)
+    : movements
 
   return (
     <>
@@ -69,6 +78,24 @@ export function StockHistoryDrawer({ item, onClose }: StockHistoryDrawerProps) {
           </div>
         </div>
 
+        {/* Filter by movement type */}
+        <div className="px-5 py-3 border-b border-[#F2C4B0]">
+          <label className="text-xs text-[#B89080] mb-1.5 block">Filter by Type</label>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as StockMovementType | '')}
+            className="w-full text-sm border border-[#F2C4B0] rounded-lg px-3 py-1.5 text-[#7A3E2E] focus:border-[#E8896A] focus:ring-1 focus:ring-[#E8896A] focus:outline-none bg-white"
+          >
+            <option value="">All Types</option>
+            <option value="restock">Restock</option>
+            <option value="sale">Sale</option>
+            <option value="adjustment">Adjustment</option>
+            <option value="return">Return</option>
+            <option value="import">Import</option>
+            <option value="rollback">Rollback</option>
+          </select>
+        </div>
+
         {/* Movement list */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="flex items-center gap-1.5 mb-3">
@@ -82,13 +109,15 @@ export function StockHistoryDrawer({ item, onClose }: StockHistoryDrawerProps) {
                 <div key={i} className="h-14 bg-[#FDE8DF] rounded-xl animate-pulse" />
               ))}
             </div>
-          ) : movements.length === 0 ? (
+          ) : filteredMovements.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm text-[#B89080]">No stock movements yet</p>
+              <p className="text-sm text-[#B89080]">
+                {typeFilter ? `No ${TYPE_CONFIG[typeFilter]?.label.toLowerCase()} movements` : 'No stock movements yet'}
+              </p>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {movements.map(m => {
+              {filteredMovements.map(m => {
                 const config = TYPE_CONFIG[m.type]
                 const isPositive = m.type === 'restock' || m.type === 'return'
                 return (

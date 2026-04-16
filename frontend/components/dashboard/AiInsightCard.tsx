@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { aiPost } from '@/lib/ai-fetch'
-import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import { getAICached, setAICached, clearAICacheKey, AI_TTL } from '@/lib/ai-cache'
 import type { DashboardMetrics, TopProductData, Sale, SalesChartData } from '@/types'
 
 // Stable cache key — not tied to metric values so it survives remounts
@@ -33,17 +33,22 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
   // Auto-fetch on mount if no cache
   useEffect(() => {
     if (!loading && !insight && !error) {
-      fetchInsight()
+      fetchInsight(false)
     }
   }, [loading])
 
-  async function fetchInsight() {
+  async function fetchInsight(forceRefresh = false) {
     setFetching(true)
     setError(null)
     try {
-      // Check localStorage cache first — no API call if still fresh
-      const cached = getAICached(CACHE_KEY)
-      if (cached) { setInsight(cached); setFetching(false); return }
+      // If force refresh, clear cache first
+      if (forceRefresh) {
+        clearAICacheKey(CACHE_KEY)
+      } else {
+        // Check localStorage cache first — no API call if still fresh
+        const cached = getAICached(CACHE_KEY)
+        if (cached) { setInsight(cached); setFetching(false); return }
+      }
 
       const res = await aiPost({
         type: 'dashboard_insight',
@@ -53,9 +58,9 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
         salesChart,
       })
       const data = await res.json()
-      if (res.status === 401) { setError('Please log in to use AI features.'); return }
-      if (res.status === 429) { setError(data.error); return }
-      if (data.error === 'AI not configured') { setConfigured(false); return }
+      if (res.status === 401) { setError('Please log in to use AI features.'); setFetching(false); return }
+      if (res.status === 429) { setError(data.error); setFetching(false); return }
+      if (data.error === 'AI not configured') { setConfigured(false); setFetching(false); return }
       if (data.insight) {
         setAICached(CACHE_KEY, data.insight, AI_TTL.INSIGHT)
         setInsight(data.insight)
@@ -65,6 +70,10 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
     } finally {
       setFetching(false)
     }
+  }
+
+  function handleRefresh() {
+    fetchInsight(true) // Force refresh, bypass cache
   }
 
   if (!configured) return null
@@ -82,7 +91,7 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
           </div>
         </div>
         <button
-          onClick={fetchInsight}
+          onClick={handleRefresh}
           disabled={fetching || loading}
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Refresh insight"
@@ -103,7 +112,7 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
           <div className="text-center py-4">
             <p className="text-sm text-[#C05050] mb-2">{error}</p>
             <button
-              onClick={fetchInsight}
+              onClick={handleRefresh}
               className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors"
             >
               Try again →
@@ -120,7 +129,7 @@ export function AiInsightCard({ metrics, topProducts, recentSales, salesChart, l
             </div>
             <p className="text-sm text-[#7A3E2E] font-medium mb-1">Generating insights...</p>
             <button
-              onClick={fetchInsight}
+              onClick={() => fetchInsight(false)}
               disabled={loading}
               className="text-xs text-[#E8896A] hover:text-[#C1614A] transition-colors disabled:opacity-40"
             >

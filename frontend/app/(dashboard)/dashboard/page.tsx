@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, BarChart2, Percent } from 'lucide-react'
+import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, Sparkles, Percent, BarChart2 } from 'lucide-react'
 import { useDashboardMetrics, type DateRange } from '@/hooks/useDashboardMetrics'
 import { useProducts } from '@/hooks/useProducts'
 import { useSales } from '@/hooks/useSales'
@@ -13,15 +13,13 @@ import { ChartCard } from '@/components/charts/ChartCard'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
 import { SalesChart } from '@/components/charts/SalesChart'
 import { TopProductsChart } from '@/components/charts/TopProductsChart'
-import { RevenueChart } from '@/components/charts/RevenueChart'
-import { RecentTransactions } from '@/components/dashboard/RecentTransactions'
+import { PaymentMethodsChart } from '@/components/charts/PaymentMethodsChart'
+import { CategoryPerformanceChart } from '@/components/dashboard/CategoryPerformanceChart'
 import { RevenueRadial } from '@/components/dashboard/RevenueRadial'
 import { AiInsightCard } from '@/components/dashboard/AiInsightCard'
 import { SmartReorderCard } from '@/components/dashboard/SmartReorderCard'
 import { AnomalyDetectionCard } from '@/components/dashboard/AnomalyDetectionCard'
 import { DeadStockRecoveryCard } from '@/components/dashboard/DeadStockRecoveryCard'
-import { CategoryPerformanceChart } from '@/components/dashboard/CategoryPerformanceChart'
-import { DeadStockWidget } from '@/components/dashboard/DeadStockWidget'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { exportDashboardPDF } from '@/lib/export-dashboard'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -60,7 +58,7 @@ export default function DashboardPage() {
   } = useDashboardMetrics()
 
   const { allProducts } = useProducts()
-  const { createSale } = useSales()
+  const { createSale, allSales } = useSales()
   const { inventory } = useRealtimeInventory()
 
   async function handleExport() {
@@ -73,9 +71,6 @@ export default function DashboardPage() {
   }
 
   const revenueChange = calcChange(metrics.total_sales_revenue, metrics.last_month_revenue)
-  const grossMarginPct = metrics.total_sales_revenue > 0
-    ? ((metrics.gross_profit ?? 0) / metrics.total_sales_revenue * 100).toFixed(1)
-    : '0'
 
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
@@ -95,6 +90,7 @@ export default function DashboardPage() {
         {/* Action Buttons Row */}
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangeFilter />
+          
           <button onClick={() => router.push('/pos')}
             className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs font-medium transition-colors whitespace-nowrap">
             <ShoppingCart className="w-3.5 h-3.5" />
@@ -133,7 +129,7 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* Row 1 — 6 KPI Cards */}
+      {/* Row 1 — 6 Core KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
         {loading ? (
           <>{[...Array(6)].map((_, i) => <MetricCardSkeleton key={i} />)}</>
@@ -146,102 +142,90 @@ export default function DashboardPage() {
             <MetricCard label="Sales This Month" value={formatCurrency(metrics.total_sales_revenue)}
               icon={<TrendingUp className="w-4 h-4 text-[#E8896A]" />}
               change={revenueChange} />
-            <MetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
-              icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
-              sub={`${grossMarginPct}% margin`} />
-            <MetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
-              icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
-              sub={`${metrics.total_sales_count ?? 0} orders`} />
             <MetricCard label="Low Stock Items" value={metrics.low_stock_count}
               icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
               danger={metrics.low_stock_count > 0} />
+            <MetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
+              icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
+              sub={`${metrics.total_sales_revenue > 0 ? ((metrics.gross_profit ?? 0) / metrics.total_sales_revenue * 100).toFixed(1) : '0'}% margin`} />
+            <MetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
+              icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
+              sub={`${metrics.total_sales_count ?? 0} orders`} />
           </>
         )}
       </div>
 
-      {/* Row 2 — Sales Trend */}
-      <ChartCard title="Sales Trend"
-        action={
-          <div className="flex items-center gap-0.5 bg-[#FDF6F0] rounded-lg p-0.5">
-            {DATE_RANGE_OPTIONS.map(opt => (
-              <button key={opt.value} onClick={() => setDateRange(opt.value)}
-                className={cn('px-2 py-1 rounded-md text-xs transition-colors',
-                  dateRange === opt.value ? 'bg-white text-[#7A3E2E] shadow-sm font-medium' : 'text-[#B89080] hover:text-[#7A3E2E]')}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        }>
+      {/* Row 2 — Sales Trend (Hero Chart) */}
+      <ChartCard title="Sales Trend">
         {loading ? <ChartSkeleton /> : <SalesChart data={salesChartData} />}
       </ChartCard>
 
       {/* Row 3 — Revenue Goal + Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 sm:gap-3">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[250px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[280px]">
           <h3 className="text-sm font-medium text-[#7A3E2E] mb-3">Monthly Revenue Goal</h3>
           <div className="flex-1 flex items-center justify-center">
             <RevenueRadial current={metrics.total_sales_revenue} loading={loading} />
           </div>
         </div>
-        <div className="lg:col-span-3">
-          <ChartCard title="Top Products by Revenue">
-            {loading ? <ChartSkeleton /> : <TopProductsChart data={topProductsData} />}
-          </ChartCard>
-        </div>
+        <ChartCard title="Top Products by Revenue">
+          {loading ? <ChartSkeleton /> : <TopProductsChart data={topProductsData} />}
+        </ChartCard>
       </div>
 
-      {/* Row 4 — Revenue 6 months + Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 sm:gap-3">
-        <div className="lg:col-span-3">
-          <ChartCard title="Revenue (Last 6 Months)">
-            {loading ? <ChartSkeleton /> : <RevenueChart data={revenueChartData} />}
-          </ChartCard>
-        </div>
-        <div className="lg:col-span-2">
-          <ChartCard title="Recent Transactions">
-            <RecentTransactions sales={recentSales} loading={loading} />
-          </ChartCard>
-        </div>
-      </div>
-
-      {/* Row 5 — Category Performance + Dead Stock */}
+      {/* Row 4 — Payment Methods + Category Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[280px]">
+          <h3 className="text-sm font-medium text-[#7A3E2E] mb-3">Payment Methods</h3>
+          <div className="flex-1 flex items-center justify-center">
+            {loading ? <ChartSkeleton /> : <PaymentMethodsChart data={allSales || []} />}
+          </div>
+        </div>
         <ChartCard title="Sales by Category">
           {loading ? <ChartSkeleton /> : <CategoryPerformanceChart data={categoryPerformance} />}
         </ChartCard>
-        <ChartCard title="Dead Stock Alert">
-          <DeadStockWidget items={deadStock} loading={loading} />
-        </ChartCard>
       </div>
 
-      {/* Row 6 — AI Features (4 columns) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-2 sm:gap-3">
-        <AiInsightCard
-          metrics={metrics}
-          topProducts={topProductsData}
-          recentSales={recentSales}
-          salesChart={salesChartData}
-          loading={loading}
-        />
-        <SmartReorderCard
-          inventory={inventory}
-          salesChart={salesChartData}
-          topProducts={topProductsData}
-          loading={loading}
-        />
-        <AnomalyDetectionCard
-          salesChart={salesChartData}
-          topProducts={topProductsData}
-          inventory={inventory}
-          loading={loading}
-        />
-        <DeadStockRecoveryCard
-          deadStock={deadStock}
-          topProducts={topProductsData}
-          categoryPerformance={categoryPerformance}
-          totalRevenue={metrics.total_sales_revenue}
-          loading={loading}
-        />
+      {/* Row 5 — Smart Alert Card */}
+      <div className="bg-gradient-to-br from-[#FDF6F0] to-white rounded-xl border border-[#F2C4B0] p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-[#FDE8DF] flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-[#E8896A]" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-medium text-[#7A3E2E] mb-1">Smart Business Insights</h3>
+            <p className="text-xs text-[#B89080]">AI-powered alerts and recommendations for your business</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <AiInsightCard
+            metrics={metrics}
+            topProducts={topProductsData}
+            recentSales={recentSales}
+            salesChart={salesChartData}
+            loading={loading}
+          />
+          <SmartReorderCard
+            inventory={inventory}
+            salesChart={salesChartData}
+            topProducts={topProductsData}
+            loading={loading}
+          />
+          <AnomalyDetectionCard
+            salesChart={salesChartData}
+            topProducts={topProductsData}
+            inventory={inventory}
+            loading={loading}
+          />
+          <DeadStockRecoveryCard
+            deadStock={deadStock}
+            topProducts={topProductsData}
+            categoryPerformance={categoryPerformance}
+            totalRevenue={metrics.total_sales_revenue}
+            loading={loading}
+          />
+        </div>
       </div>
 
       <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen} products={allProducts}

@@ -5,11 +5,17 @@ import { ShoppingCart } from 'lucide-react'
 import { ProductSearch } from '@/components/pos/ProductSearch'
 import { POSCart } from '@/components/pos/POSCart'
 import { ReceiptView } from '@/components/pos/ReceiptView'
+import { PaymentMethodSelector } from '@/components/pos/PaymentMethodSelector'
+import { CashCalculator } from '@/components/pos/CashCalculator'
+import { DiscountModal } from '@/components/pos/DiscountModal'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner'
 import { completePOSSale, getProductBySKU } from '@/lib/pos-api'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import type { Product, CartItem, Sale } from '@/types'
+import { formatCurrency } from '@/lib/utils'
+import type { Product, CartItem, Sale, PaymentMethod, DiscountType } from '@/types'
 
 const CART_STORAGE_KEY = 'talastock_pos_cart'
 
@@ -19,6 +25,24 @@ export default function POSPage() {
   const [isOffline, setIsOffline] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [cashReceived, setCashReceived] = useState(0)
+  const [changeGiven, setChangeGiven] = useState(0)
+
+  // Discount state
+  const [discount, setDiscount] = useState<{
+    type: DiscountType
+    value: number
+    amount: number
+  }>({
+    type: 'none',
+    value: 0,
+    amount: 0,
+  })
+  const [showDiscountModal, setShowDiscountModal] = useState(false)
 
   // Get current user
   useEffect(() => {
@@ -129,6 +153,31 @@ export default function POSPage() {
     sessionStorage.removeItem(CART_STORAGE_KEY)
   }, [])
 
+  // Open discount modal
+  const openDiscountModal = useCallback(() => {
+    setShowDiscountModal(true)
+  }, [])
+
+  // Apply discount
+  const applyDiscount = useCallback((discountType: DiscountType, discountValue: number, discountAmount: number) => {
+    setDiscount({
+      type: discountType,
+      value: discountValue,
+      amount: discountAmount,
+    })
+    toast.success('Discount applied')
+  }, [])
+
+  // Remove discount
+  const removeDiscount = useCallback(() => {
+    setDiscount({
+      type: 'none',
+      value: 0,
+      amount: 0,
+    })
+    toast.success('Discount removed')
+  }, [])
+
   // Handle barcode scan
   const handleBarcodeScan = useCallback(async (sku: string) => {
     try {
@@ -148,9 +197,32 @@ export default function POSPage() {
 
   // Enable barcode scanner
   useBarcodeScanner({
-    enabled: !isProcessing && !completedSale,
+    enabled: !isProcessing && !completedSale && !showPaymentModal && !showDiscountModal,
     onScan: handleBarcodeScan,
   })
+
+  // Calculate cart subtotal and total
+  const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0)
+  const cartTotal = cartSubtotal - discount.amount
+
+  // Open payment modal
+  const openPaymentModal = useCallback(() => {
+    if (cart.length === 0) {
+      toast.error('Cart is empty')
+      return
+    }
+    
+    // Reset payment state
+    setPaymentMethod('cash')
+    setCashReceived(0)
+    setChangeGiven(0)
+    setShowPaymentModal(true)
+  }, [cart])
+
+  // Close payment modal
+  const closePaymentModal = useCallback(() => {
+    setShowPaymentModal(false)
+  }, [])
 
   // Complete sale
   const completeSale = useCallback(async () => {
@@ -164,17 +236,41 @@ export default function POSPage() {
       return
     }
 
+    // Validate payment data
+    if (paymentMethod === 'cash') {
+      if (cashReceived < cartTotal) {
+        toast.error('Cash received must be greater than or equal to total amount')
+        return
+      }
+      // Calculate change
+      const change = cashReceived - cartTotal
+      setChangeGiven(change)
+    }
+
     setIsProcessing(true)
     try {
       const result = await completePOSSale({
         items: cart,
         userId,
+        payment_method: paymentMethod,
+        cash_received: paymentMethod === 'cash' ? cashReceived : undefined,
+        change_given: paymentMethod === 'cash' ? (cashReceived - cartTotal) : undefined,
+        discount_type: discount.type,
+        discount_value: discount.value,
+        discount_amount: discount.amount,
       })
 
       if (result.success) {
         toast.success('Sale completed successfully!')
         setCompletedSale(result.sale)
         clearCart()
+        closePaymentModal()
+        // Clear discount when starting new sale
+        setDiscount({
+          type: 'none',
+          value: 0,
+          amount: 0,
+        })
       } else {
         toast.error(result.error || 'Failed to complete sale')
       }
@@ -184,11 +280,17 @@ export default function POSPage() {
     } finally {
       setIsProcessing(false)
     }
-  }, [cart, userId, clearCart])
+  }, [cart, userId, paymentMethod, cashReceived, cartTotal, discount, clearCart, closePaymentModal])
 
   // Start new sale (clear receipt)
   const startNewSale = useCallback(() => {
     setCompletedSale(null)
+    // Clear discount when starting new sale
+    setDiscount({
+      type: 'none',
+      value: 0,
+      amount: 0,
+    })
   }, [])
 
   // If showing receipt, display receipt view
@@ -234,13 +336,88 @@ export default function POSPage() {
             items={cart}
             onUpdateQuantity={updateQuantity}
             onRemoveItem={removeItem}
-            onCompleteSale={completeSale}
+            onCompleteSale={openPaymentModal}
             onClearCart={clearCart}
             isProcessing={isProcessing}
             offlineMode={isOffline}
+            discount={discount}
+            onOpenDiscountModal={openDiscountModal}
+            onRemoveDiscount={removeDiscount}
           />
         </div>
       </div>
+
+      {/* Discount Modal */}
+      <DiscountModal
+        open={showDiscountModal}
+        onOpenChange={setShowDiscountModal}
+        totalAmount={cartSubtotal}
+        onApplyDiscount={applyDiscount}
+        currentDiscount={discount.type !== 'none' ? discount : undefined}
+      />
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="border-[#F2C4B0] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#7A3E2E]">Complete Payment</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Total Amount Display */}
+            <div className="p-4 rounded-lg bg-[#FDF6F0] border border-[#F2C4B0]">
+              <p className="text-xs text-[#B89080] mb-1">Total Amount</p>
+              <p className="text-2xl font-medium text-[#7A3E2E]">
+                {formatCurrency(cartTotal)}
+              </p>
+            </div>
+
+            {/* Payment Method Selector */}
+            <PaymentMethodSelector
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              disabled={isProcessing}
+            />
+
+            {/* Cash Calculator (only for cash payments) */}
+            {paymentMethod === 'cash' && (
+              <CashCalculator
+                totalAmount={cartTotal}
+                cashReceived={cashReceived}
+                onChange={setCashReceived}
+              />
+            )}
+
+            {/* Non-Cash Payment Confirmation */}
+            {paymentMethod !== 'cash' && (
+              <div className="p-4 rounded-lg bg-[#FDE8DF] border border-[#F2C4B0]">
+                <p className="text-sm text-[#7A3E2E] text-center">
+                  Please confirm that payment of <span className="font-medium">{formatCurrency(cartTotal)}</span> has been received via{' '}
+                  <span className="font-medium capitalize">{paymentMethod.replace('_', ' ')}</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={closePaymentModal}
+              disabled={isProcessing}
+              className="border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={completeSale}
+              disabled={isProcessing || (paymentMethod === 'cash' && cashReceived < cartTotal)}
+              className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+            >
+              {isProcessing ? 'Processing...' : 'Complete Sale'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { signIn } from '@/lib/auth'
@@ -75,10 +76,19 @@ export default function LoginPage() {
             )}
           </div>
 
+          <div className="flex justify-end">
+            <Link 
+              href="/forgot-password"
+              className="text-xs text-[#E8896A] hover:text-[#C1614A] hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
           <Button
             type="submit"
             disabled={loading}
-            className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0 mt-2"
+            className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </Button>

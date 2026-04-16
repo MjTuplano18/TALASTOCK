@@ -110,13 +110,64 @@ export function ReceiptView({ sale, onNewSale }: ReceiptViewProps) {
           )}
         </div>
 
-        {/* Total */}
+        {/* Subtotal and Discount */}
         <div className="pt-4 border-t border-[#F2C4B0]">
-          <div className="flex justify-between items-center">
+          {/* Show original subtotal if there's a discount */}
+          {sale.discount_type && sale.discount_type !== 'none' && sale.discount_amount > 0 && (
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-[#7A3E2E]">Subtotal</span>
+                <span className="text-sm text-[#7A3E2E]">
+                  {formatCurrency(sale.total_amount + sale.discount_amount)}
+                </span>
+              </div>
+              
+              {/* Discount Line */}
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm text-[#7A3E2E]">
+                  {sale.discount_type === 'senior_pwd' 
+                    ? 'Senior Citizen/PWD Discount (20%)'
+                    : sale.discount_type === 'percentage'
+                    ? `Discount (${sale.discount_value}%)`
+                    : 'Discount'}
+                </span>
+                <span className="text-sm text-[#E8896A]">
+                  -{formatCurrency(sale.discount_amount)}
+                </span>
+              </div>
+            </>
+          )}
+          
+          {/* Total */}
+          <div className="flex justify-between items-center mb-3">
             <span className="text-sm font-medium text-[#7A3E2E]">Total</span>
             <span className="text-xl font-medium text-[#7A3E2E]">
               {formatCurrency(sale.total_amount)}
             </span>
+          </div>
+
+          {/* Payment Information */}
+          <div className="mt-4 pt-4 border-t border-[#F2C4B0] space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-[#B89080]">Payment Method</span>
+              <span className="text-[#7A3E2E] font-medium capitalize">
+                {sale.payment_method?.replace('_', ' ') || 'Cash'}
+              </span>
+            </div>
+            
+            {/* Cash Payment Details */}
+            {sale.payment_method === 'cash' && sale.cash_received && (
+              <>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#B89080]">Cash Received</span>
+                  <span className="text-[#7A3E2E]">{formatCurrency(sale.cash_received)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#B89080]">Change</span>
+                  <span className="text-[#7A3E2E] font-medium">{formatCurrency(sale.change_given || 0)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

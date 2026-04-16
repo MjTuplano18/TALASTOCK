@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { ShoppingCart, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { ShoppingCart, ChevronDown, ChevronUp, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { SearchInput } from '@/components/shared/SearchInput'
+import { FilterSelect } from '@/components/shared/FilterSelect'
 import { ImportButton } from '@/components/shared/ImportButton'
 import { RangeInput, type RangeValue } from '@/components/shared/RangeInput'
 import { DateRangePicker, type DateRange } from '@/components/shared/DateRangePicker'
@@ -13,22 +14,95 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { SalesImportModal } from '@/components/sales/SalesImportModal'
+import { RefundModal } from '@/components/sales/RefundModal'
 import { useSales } from '@/hooks/useSales'
 import { useProducts } from '@/hooks/useProducts'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
+import { processSaleRefund } from '@/lib/refund-api'
 import { toast } from 'sonner'
-import type { Sale, Product } from '@/types'
+import type { Sale, Product, PaymentMethod, DiscountType, SaleStatus, RefundItem, RefundRequest } from '@/types'
 import type { ParsedSaleItem } from '@/lib/import-sales-parser'
 
 const PAGE_SIZE = 15
+
+// Status badge component
+function StatusBadge({ status }: { status: SaleStatus }) {
+  const config = {
+    completed: { label: 'Completed', bg: '#FDE8DF', color: '#C1614A' },
+    refunded: { label: 'Refunded', bg: '#FDECEA', color: '#C05050' },
+    partially_refunded: { label: 'Partially Refunded', bg: '#FDE8DF', color: '#B89080' },
+  }
+  
+  const style = config[status] || config.completed
+  
+  return (
+    <span 
+      className="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
+      style={{ background: style.bg, color: style.color }}
+    >
+      {style.label}
+    </span>
+  )
+}
+
+// Payment method badge component
+function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
+  const config = {
+    cash: { label: 'Cash', bg: '#FDE8DF', color: '#C1614A' },
+    card: { label: 'Card', bg: '#E8F5E9', color: '#2E7D32' },
+    gcash: { label: 'GCash', bg: '#E3F2FD', color: '#1565C0' },
+    paymaya: { label: 'PayMaya', bg: '#F3E5F5', color: '#6A1B9A' },
+    bank_transfer: { label: 'Bank Transfer', bg: '#FFF3E0', color: '#E65100' },
+  }
+  
+  const style = config[method] || config.cash
+  
+  return (
+    <span 
+      className="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
+      style={{ background: style.bg, color: style.color }}
+    >
+      {style.label}
+    </span>
+  )
+}
+
+// Discount badge component
+function DiscountBadge({ type, amount }: { type: DiscountType; amount: number }) {
+  if (type === 'none' || amount === 0) {
+    return <span className="text-xs text-[#B89080]">—</span>
+  }
+  
+  const config = {
+    percentage: { label: 'Percentage', bg: '#FFF3E0', color: '#E65100' },
+    fixed: { label: 'Fixed', bg: '#F3E5F5', color: '#6A1B9A' },
+    senior_pwd: { label: 'Senior/PWD', bg: '#E8F5E9', color: '#2E7D32' },
+  }
+  
+  const style = config[type as keyof typeof config] || config.percentage
+  
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span 
+        className="text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap"
+        style={{ background: style.bg, color: style.color }}
+      >
+        {style.label}
+      </span>
+      <span className="text-xs text-[#C05050] font-medium">
+        -{formatCurrency(amount)}
+      </span>
+    </div>
+  )
+}
 
 // Expanded row showing sale line items
 function SaleExpandedRow({ sale }: { sale: Sale }) {
   return (
     <tr>
-      <td colSpan={5} className="px-4 pb-3 pt-0">
+      <td colSpan={8} className="px-4 pb-3 pt-0">
         <div className="bg-[#FDF6F0] rounded-xl border border-[#F2C4B0] p-3">
           <p className="text-xs font-medium text-[#7A3E2E] mb-2">Items in this sale</p>
           <table className="w-full text-xs">
@@ -53,6 +127,34 @@ function SaleExpandedRow({ sale }: { sale: Sale }) {
               ))}
             </tbody>
           </table>
+          {/* Discount information */}
+          {sale.discount_type && sale.discount_type !== 'none' && sale.discount_amount > 0 && (
+            <div className="mt-2 pt-2 border-t border-[#F2C4B0] text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#B89080]">
+                  Discount ({sale.discount_type === 'senior_pwd' ? 'Senior/PWD 20%' : 
+                            sale.discount_type === 'percentage' ? `${sale.discount_value}%` : 
+                            'Fixed Amount'}):
+                </span>
+                <span className="text-[#C05050] font-medium">-{formatCurrency(sale.discount_amount)}</span>
+              </div>
+            </div>
+          )}
+          {/* Payment information */}
+          {sale.payment_method === 'cash' && sale.cash_received && (
+            <div className="mt-2 pt-2 border-t border-[#F2C4B0] text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#B89080]">Cash Received:</span>
+                <span className="text-[#7A3E2E] font-medium">{formatCurrency(sale.cash_received)}</span>
+              </div>
+              {sale.change_given !== undefined && sale.change_given > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#B89080]">Change Given:</span>
+                  <span className="text-[#7A3E2E] font-medium">{formatCurrency(sale.change_given)}</span>
+                </div>
+              )}
+            </div>
+          )}
           {sale.notes && (
             <p className="text-xs text-[#B89080] mt-2">Note: {sale.notes}</p>
           )}
@@ -72,6 +174,11 @@ export default function SalesPage() {
   const [voidTarget, setVoidTarget] = useState<Sale | null>(null)
   const [voiding, setVoiding] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
+  
+  // Refund modal state
+  const [refundModalOpen, setRefundModalOpen] = useState(false)
+  const [refundTarget, setRefundTarget] = useState<Sale | null>(null)
+  const [refunding, setRefunding] = useState(false)
 
   // Fetch products for import
   useEffect(() => {
@@ -88,6 +195,9 @@ export default function SalesPage() {
   const [search, setSearch] = useState('')
   const [amountRange, setAmountRange] = useState<RangeValue>({ min: '', max: '' })
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null })
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all')
+  const [discountFilter, setDiscountFilter] = useState<DiscountType | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<SaleStatus | 'all'>('all')
 
   // Debounce search to reduce re-renders
   const debouncedSearch = useDebounce(search, 300)
@@ -108,13 +218,16 @@ export default function SalesPage() {
         if (d < dateRange.from) return false
         if (dateRange.to && d > dateRange.to) return false
       }
+      if (paymentMethodFilter !== 'all' && sale.payment_method !== paymentMethodFilter) return false
+      if (discountFilter !== 'all' && sale.discount_type !== discountFilter) return false
+      if (statusFilter !== 'all' && sale.status !== statusFilter) return false
       return true
     })
-  }, [allSales, debouncedSearch, amountRange, dateRange])
+  }, [allSales, debouncedSearch, amountRange, dateRange, paymentMethodFilter, discountFilter, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const hasFilters = search || amountRange.min || amountRange.max || dateRange.from
+  const hasFilters = search || amountRange.min || amountRange.max || dateRange.from || paymentMethodFilter !== 'all' || discountFilter !== 'all' || statusFilter !== 'all'
   const totalFiltered = filtered.reduce((sum, s) => sum + s.total_amount, 0)
 
   async function handleVoid() {
@@ -133,6 +246,66 @@ export default function SalesPage() {
       setVoiding(false)
       setVoidTarget(null)
     }
+  }
+
+  // Handle refund
+  async function handleRefund(refundItems: RefundItem[], refundReason?: string) {
+    if (!refundTarget) return
+    
+    setRefunding(true)
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error('User not authenticated')
+        return
+      }
+      
+      // Calculate total refund amount
+      const totalRefundAmount = refundItems.reduce((sum, item) => sum + item.refund_amount, 0)
+      
+      // Determine if this is a full refund
+      const isFullRefund = refundTarget.sale_items 
+        ? refundItems.length === refundTarget.sale_items.length &&
+          refundItems.every(refundItem => {
+            const originalItem = refundTarget.sale_items?.find(item => item.id === refundItem.sale_item_id)
+            return originalItem && refundItem.refund_quantity === originalItem.quantity
+          })
+        : false
+      
+      // Build refund request
+      const refundRequest: RefundRequest = {
+        sale_id: refundTarget.id,
+        items: refundItems,
+        refund_reason: refundReason,
+        total_refund_amount: totalRefundAmount,
+        is_full_refund: isFullRefund,
+      }
+      
+      // Process refund
+      const response = await processSaleRefund(refundRequest, user.id)
+      
+      if (response.success) {
+        toast.success(response.message)
+        setRefundModalOpen(false)
+        setRefundTarget(null)
+        await refetch()
+      } else {
+        toast.error(response.message)
+      }
+    } catch (error) {
+      console.error('Refund error:', error)
+      toast.error('Failed to process refund')
+    } finally {
+      setRefunding(false)
+    }
+  }
+  
+  // Open refund modal
+  function openRefundModal(sale: Sale) {
+    setRefundTarget(sale)
+    setRefundModalOpen(true)
   }
 
   function toggleExpand(id: string) {
@@ -220,8 +393,41 @@ export default function SalesPage() {
         <SearchInput value={search} onChange={setSearch} placeholder="Search product or notes…" />
         <RangeInput value={amountRange} onChange={setAmountRange} label="Amount Range" prefix="₱" placeholder="Amount" />
         <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <FilterSelect 
+          value={paymentMethodFilter} 
+          onChange={(v) => setPaymentMethodFilter(v as PaymentMethod | 'all')} 
+          placeholder="All Payment Methods"
+          options={[
+            { label: 'Cash', value: 'cash' },
+            { label: 'Card', value: 'card' },
+            { label: 'GCash', value: 'gcash' },
+            { label: 'PayMaya', value: 'paymaya' },
+            { label: 'Bank Transfer', value: 'bank_transfer' },
+          ]} 
+        />
+        <FilterSelect 
+          value={discountFilter} 
+          onChange={(v) => setDiscountFilter(v as DiscountType | 'all')} 
+          placeholder="All Discounts"
+          options={[
+            { label: 'No Discount', value: 'none' },
+            { label: 'Percentage', value: 'percentage' },
+            { label: 'Fixed Amount', value: 'fixed' },
+            { label: 'Senior/PWD', value: 'senior_pwd' },
+          ]} 
+        />
+        <FilterSelect 
+          value={statusFilter} 
+          onChange={(v) => setStatusFilter(v as SaleStatus | 'all')} 
+          placeholder="All Statuses"
+          options={[
+            { label: 'Completed', value: 'completed' },
+            { label: 'Refunded', value: 'refunded' },
+            { label: 'Partially Refunded', value: 'partially_refunded' },
+          ]} 
+        />
         {hasFilters && (
-          <button onClick={() => { setSearch(''); setAmountRange({ min: '', max: '' }); setDateRange({ from: null, to: null }) }}
+          <button onClick={() => { setSearch(''); setAmountRange({ min: '', max: '' }); setDateRange({ from: null, to: null }); setPaymentMethodFilter('all'); setDiscountFilter('all'); setStatusFilter('all') }}
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
         <div className="flex items-center gap-2 ml-auto">
@@ -263,6 +469,9 @@ export default function SalesPage() {
                   <th className="w-8 py-3 px-4" />
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">Date & Time</th>
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">Products</th>
+                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Status</th>
+                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Payment Method</th>
+                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Discount</th>
                   <th className="text-left py-3 px-4 text-[#B89080] font-medium">Total Amount</th>
                   <th className="py-3 px-4" />
                 </tr>
@@ -288,14 +497,45 @@ export default function SalesPage() {
                         </td>
                         <td className="py-3 px-4 text-[#B89080] text-xs">{formatDateTime(sale.created_at)}</td>
                         <td className="py-3 px-4 text-[#7A3E2E]">{productSummary}</td>
-                        <td className="py-3 px-4 font-medium text-[#7A3E2E]">{formatCurrency(sale.total_amount)}</td>
+                        <td className="py-3 px-4">
+                          <StatusBadge status={sale.status || 'completed'} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <PaymentMethodBadge method={sale.payment_method || 'cash'} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <DiscountBadge type={sale.discount_type || 'none'} amount={sale.discount_amount || 0} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium text-[#7A3E2E]">{formatCurrency(sale.total_amount)}</span>
+                            {sale.refunded_amount > 0 && (
+                              <span className="text-xs text-[#C05050]">
+                                Refunded: {formatCurrency(sale.refunded_amount)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => setVoidTarget(sale)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
-                            title="Void this sale">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {/* Refund button - only show for completed or partially refunded sales */}
+                            {sale.status !== 'refunded' && (
+                              <button
+                                onClick={() => openRefundModal(sale)}
+                                disabled={refunding}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Process refund">
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {/* Void button */}
+                            <button
+                              onClick={() => setVoidTarget(sale)}
+                              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+                              title="Void this sale">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && <SaleExpandedRow sale={sale} />}
@@ -330,6 +570,19 @@ export default function SalesPage() {
         loading={voiding}
         danger
       />
+
+      {/* Refund Modal */}
+      {refundTarget && (
+        <RefundModal
+          open={refundModalOpen}
+          onClose={() => {
+            setRefundModalOpen(false)
+            setRefundTarget(null)
+          }}
+          sale={refundTarget}
+          onConfirm={handleRefund}
+        />
+      )}
     </div>
   )
 }

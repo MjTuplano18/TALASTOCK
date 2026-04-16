@@ -1,9 +1,15 @@
 import { supabase } from './supabase'
-import type { CartItem, Sale } from '@/types'
+import type { CartItem, Sale, PaymentMethod, DiscountType } from '@/types'
 
 interface CompletePOSSaleParams {
   items: CartItem[]
   userId: string
+  payment_method?: PaymentMethod
+  cash_received?: number
+  change_given?: number
+  discount_type?: DiscountType
+  discount_value?: number
+  discount_amount?: number
 }
 
 interface CompletePOSSaleResult {
@@ -16,7 +22,7 @@ interface CompletePOSSaleResult {
  * Complete a POS sale transaction
  * 
  * This function performs the following operations atomically:
- * 1. Create sale record
+ * 1. Create sale record with payment and discount data
  * 2. Create sale items
  * 3. Update inventory quantities
  * 4. Create stock movements
@@ -26,19 +32,49 @@ interface CompletePOSSaleResult {
 export async function completePOSSale({
   items,
   userId,
+  payment_method = 'cash',
+  cash_received,
+  change_given,
+  discount_type = 'none',
+  discount_value = 0,
+  discount_amount = 0,
 }: CompletePOSSaleParams): Promise<CompletePOSSaleResult> {
   try {
-    // Calculate total
-    const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0)
+    // Calculate subtotal (before discount)
+    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
+    
+    // Calculate total (after discount)
+    const totalAmount = subtotal - discount_amount
 
-    // Step 1: Create sale record
+    // Validate payment data
+    if (payment_method === 'cash') {
+      if (!cash_received || cash_received < totalAmount) {
+        throw new Error('Cash received must be greater than or equal to total amount')
+      }
+    }
+
+    // Step 1: Create sale record with payment and discount data
+    const saleData: any = {
+      total_amount: totalAmount,
+      notes: 'POS Sale',
+      created_by: userId,
+      payment_method,
+      discount_type,
+      discount_value,
+      discount_amount,
+      status: 'completed',
+      refunded_amount: 0,
+    }
+
+    // Add cash-specific fields
+    if (payment_method === 'cash' && cash_received !== undefined) {
+      saleData.cash_received = cash_received
+      saleData.change_given = change_given || (cash_received - totalAmount)
+    }
+
     const { data: sale, error: saleError } = await supabase
       .from('sales')
-      .insert({
-        total_amount: totalAmount,
-        notes: 'POS Sale',
-        created_by: userId,
-      })
+      .insert(saleData)
       .select()
       .single()
 

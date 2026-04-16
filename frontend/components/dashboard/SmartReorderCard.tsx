@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Package, RefreshCw, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { aiPost } from '@/lib/ai-fetch'
-import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import { getAICached, setAICached, clearAICacheKey, AI_TTL } from '@/lib/ai-cache'
 import type { InventoryItem, TopProductData, SalesChartData } from '@/types'
 
 const CACHE_KEY = 'talastock:ai:reorder'
@@ -45,23 +45,32 @@ export function SmartReorderCard({ inventory, salesChart, topProducts, loading }
   // Auto-fetch on mount if no cache and has low stock items
   useEffect(() => {
     if (!loading && !fetched && lowStockItems.length > 0) {
-      fetchSuggestions()
+      fetchSuggestions(false)
     }
   }, [loading, lowStockItems.length])
 
-  async function fetchSuggestions() {
+  function handleRefresh() {
+    fetchSuggestions(true) // Force refresh, bypass cache
+  }
+
+  async function fetchSuggestions(forceRefresh = false) {
     if (loading || lowStockItems.length === 0) return
     setFetching(true)
     try {
-      // Check cache first
-      const cached = getAICached(CACHE_KEY)
-      if (cached) {
-        try {
-          setSuggestions(JSON.parse(cached))
-          setFetched(true)
-          setFetching(false)
-          return
-        } catch {}
+      // If force refresh, clear cache first
+      if (forceRefresh) {
+        clearAICacheKey(CACHE_KEY)
+      } else {
+        // Check cache first
+        const cached = getAICached(CACHE_KEY)
+        if (cached) {
+          try {
+            setSuggestions(JSON.parse(cached))
+            setFetched(true)
+            setFetching(false)
+            return
+          } catch {}
+        }
       }
 
       const res = await aiPost({
@@ -102,7 +111,7 @@ export function SmartReorderCard({ inventory, salesChart, topProducts, loading }
             <span className="text-xs text-[#B89080]">AI-powered restocking</span>
           </div>
         </div>
-        <button onClick={fetchSuggestions} disabled={fetching || loading || lowStockItems.length === 0}
+        <button onClick={handleRefresh} disabled={fetching || loading || lowStockItems.length === 0}
           className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
           title="Refresh suggestions">
           <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />

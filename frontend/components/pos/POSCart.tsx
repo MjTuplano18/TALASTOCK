@@ -1,8 +1,8 @@
 'use client'
 
-import { ShoppingCart, Plus, Minus, Trash2, AlertTriangle } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Trash2, AlertTriangle, Tag, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import type { CartItem } from '@/types'
+import type { CartItem, DiscountType } from '@/types'
 
 interface POSCartProps {
   items: CartItem[]
@@ -12,6 +12,13 @@ interface POSCartProps {
   onClearCart: () => void
   isProcessing: boolean
   offlineMode: boolean
+  discount?: {
+    type: DiscountType
+    value: number
+    amount: number
+  }
+  onOpenDiscountModal?: () => void
+  onRemoveDiscount?: () => void
 }
 
 export function POSCart({
@@ -22,10 +29,29 @@ export function POSCart({
   onClearCart,
   isProcessing,
   offlineMode,
+  discount,
+  onOpenDiscountModal,
+  onRemoveDiscount,
 }: POSCartProps) {
-  const cartTotal = items.reduce((sum, item) => sum + item.subtotal, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
+  const discountAmount = discount?.amount ?? 0
+  const cartTotal = subtotal - discountAmount
   const hasStockWarnings = items.some(item => item.stockWarning)
   const isEmpty = items.length === 0
+
+  // Helper function to format discount label
+  const getDiscountLabel = () => {
+    if (!discount || discount.type === 'none') return ''
+    
+    if (discount.type === 'percentage') {
+      return `${discount.value}% off`
+    } else if (discount.type === 'fixed') {
+      return `${formatCurrency(discount.value)} off`
+    } else if (discount.type === 'senior_pwd') {
+      return 'Senior/PWD (20% off)'
+    }
+    return ''
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -87,6 +113,48 @@ export function POSCart({
 
       {/* Cart Summary */}
       <div className="border-t border-[#F2C4B0] pt-3 space-y-3">
+        {/* Add Discount Button */}
+        {!isEmpty && onOpenDiscountModal && (
+          <button
+            onClick={onOpenDiscountModal}
+            disabled={isProcessing}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Tag className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {discount && discount.type !== 'none' ? 'Edit Discount' : 'Add Discount'}
+            </span>
+          </button>
+        )}
+
+        {/* Discount Breakdown */}
+        {discount && discount.type !== 'none' && (
+          <div className="space-y-2 p-3 rounded-lg bg-[#FDE8DF] border border-[#F2C4B0]">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#B89080]">Subtotal</span>
+              <span className="text-sm text-[#7A3E2E]">{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-[#E8896A] font-medium">Discount</span>
+                <span className="text-xs text-[#B89080]">({getDiscountLabel()})</span>
+                {onRemoveDiscount && (
+                  <button
+                    onClick={onRemoveDiscount}
+                    disabled={isProcessing}
+                    className="w-4 h-4 flex items-center justify-center rounded text-[#B89080] hover:text-[#C05050] hover:bg-white transition-colors disabled:opacity-50"
+                    title="Remove discount"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <span className="text-sm text-[#E8896A] font-medium">-{formatCurrency(discountAmount)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Total */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-[#B89080]">Total</span>
           <span className="text-lg font-medium text-[#7A3E2E]">{formatCurrency(cartTotal)}</span>

@@ -158,7 +158,7 @@ export async function getStockMovements(productId?: string): Promise<StockMoveme
 export async function getSales(): Promise<Sale[]> {
   const { data, error } = await supabase
     .from('sales')
-    .select('id, total_amount, notes, created_by, created_at, sale_items(id, sale_id, product_id, quantity, unit_price, subtotal, products(id, name, sku))')
+    .select('id, total_amount, notes, created_by, created_at, payment_method, cash_received, change_given, discount_type, discount_value, discount_amount, status, refunded_amount, refund_reason, refunded_at, refunded_by, sale_items(id, sale_id, product_id, quantity, unit_price, subtotal, products(id, name, sku))')
     .order('created_at', { ascending: false })
 
   if (error) throw new Error(error.message)
