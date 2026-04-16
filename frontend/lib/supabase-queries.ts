@@ -190,10 +190,30 @@ export async function createSale(data: SaleCreate, userId: string): Promise<Sale
   )
 
   // 3. Insert sale record
+  const saleData: any = {
+    total_amount: totalAmount,
+    notes: data.notes ?? null,
+    created_by: userId,
+    payment_method: data.payment_method || 'cash',
+  }
+
+  // Add cash handling fields if it's a cash payment
+  if (data.payment_method === 'cash' && data.cash_received) {
+    saleData.cash_received = data.cash_received
+    saleData.change_given = data.change_given || 0
+  }
+
+  // Add discount fields if present
+  if (data.discount_type && data.discount_type !== 'none') {
+    saleData.discount_type = data.discount_type
+    saleData.discount_value = data.discount_value || 0
+    saleData.discount_amount = data.discount_amount || 0
+  }
+
   const { data: sale, error: saleError } = await supabase
     .from('sales')
-    .insert({ total_amount: totalAmount, notes: data.notes ?? null, created_by: userId })
-    .select('id, total_amount, notes, created_by, created_at')
+    .insert(saleData)
+    .select('id, total_amount, notes, created_by, created_at, payment_method, cash_received, change_given, discount_type, discount_value, discount_amount')
     .single()
 
   if (saleError) throw new Error(saleError.message)
@@ -344,14 +364,23 @@ export async function getSalesChartData(range: '7d' | '30d' | '3m' | '6m' = '7d'
   if (startDate && endDate) {
     const start = new Date(startDate)
     const end = new Date(endDate)
+    const today = new Date()
+    
+    // Don't include future dates - cap end date to today
+    const actualEnd = end > today ? today : end
+    
     const days: import('@/types').SalesChartData[] = []
     
-    // Calculate number of days in range
-    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+    // Calculate number of days in range (inclusive of start, exclusive of end if future)
+    const daysDiff = Math.ceil((actualEnd.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
     
     for (let i = 0; i <= daysDiff; i++) {
       const d = new Date(start)
       d.setDate(start.getDate() + i)
+      
+      // Skip if this date is in the future
+      if (d > today) break
+      
       const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString()
       const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString()
 
@@ -481,7 +510,7 @@ export async function getTopProductsData(startDate?: string, endDate?: string): 
 
   return Object.entries(totals)
     .sort((a, b) => b[1].revenue - a[1].revenue)
-    .slice(0, 5)
+    .slice(0, 15)
     .map(([product, data]) => ({ product, sales: data.units, revenue: data.revenue, image_url: data.image_url }))
 }
 

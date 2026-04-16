@@ -18,7 +18,7 @@ function CustomBar(props: any) {
   const { x, y, width, height, payload, fill } = props
   if (!height || height <= 0) return null
 
-  const radius = 8
+  const radius = 6
   const initials = (payload.product as string)
     .split(' ')
     .slice(0, 2)
@@ -26,9 +26,9 @@ function CustomBar(props: any) {
     .join('')
     .toUpperCase()
 
-  const avatarR = 13
+  const avatarR = 11
   const avatarCX = x + width / 2
-  const avatarCY = y - avatarR - 5
+  const avatarCY = y - avatarR - 4
 
   return (
     <g>
@@ -50,8 +50,8 @@ function CustomBar(props: any) {
       {/* Avatar circle */}
       <circle cx={avatarCX} cy={avatarCY} r={avatarR}
         fill="#FDE8DF" stroke="#F2C4B0" strokeWidth={1.5} />
-      <text x={avatarCX} y={avatarCY + 4}
-        textAnchor="middle" fontSize={8} fontWeight="600" fill="#C1614A">
+      <text x={avatarCX} y={avatarCY + 3}
+        textAnchor="middle" fontSize={7} fontWeight="600" fill="#C1614A">
         {initials}
       </text>
     </g>
@@ -73,7 +73,7 @@ function CustomTooltip({ active, payload }: any) {
 export function TopProductsChart({ data }: { data: TopProductData[] }) {
   if (!data.length) {
     return (
-      <div className="h-[240px] flex items-center justify-center">
+      <div className="h-[300px] flex items-center justify-center">
         <p className="text-sm text-[#B89080]">No sales data yet</p>
       </div>
     )
@@ -82,21 +82,24 @@ export function TopProductsChart({ data }: { data: TopProductData[] }) {
   const sorted = [...data].sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0))
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={sorted}
-        margin={{ top: 40, right: 8, left: 8, bottom: 8 }}
-        barCategoryGap="20%"
-        barSize={52}
+        margin={{ top: 40, right: 8, left: 8, bottom: 20 }}
+        barCategoryGap="15%"
+        barSize={40}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#F2C4B0" vertical={false} />
         <XAxis
           dataKey="product"
           tickLine={false}
           axisLine={false}
-          tick={{ fontSize: 10, fill: '#B89080' }}
-          tickFormatter={v => v.length > 10 ? v.slice(0, 10) + '…' : v}
+          tick={{ fontSize: 9, fill: '#B89080' }}
+          tickFormatter={v => v.length > 8 ? v.slice(0, 8) + '…' : v}
           interval={0}
+          angle={-45}
+          textAnchor="end"
+          height={60}
         />
         <YAxis
           tickFormatter={v => `₱${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}

@@ -25,6 +25,8 @@ const saleItemSchema = z.object({
 const saleSchema = z.object({
   items: z.array(saleItemSchema).min(1, 'Add at least one item'),
   notes: z.string().optional(),
+  payment_method: z.enum(['cash', 'card', 'gcash', 'paymaya', 'bank_transfer']).default('cash'),
+  cash_received: z.coerce.number().optional(),
 })
 
 type SaleFormValues = z.infer<typeof saleSchema>
@@ -50,17 +52,25 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
     defaultValues: {
       items: [{ product_id: '', quantity: 1, unit_price: 0 }],
       notes: '',
+      payment_method: 'cash' as const,
+      cash_received: undefined,
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
   const watchedItems = watch('items')
+  const watchedPaymentMethod = watch('payment_method')
+  const watchedCashReceived = watch('cash_received')
 
   const total = watchedItems.reduce((sum, item) => {
     const qty = Number(item.quantity) || 0
     const price = Number(item.unit_price) || 0
     return sum + qty * price
   }, 0)
+
+  const changeAmount = watchedPaymentMethod === 'cash' && watchedCashReceived 
+    ? Math.max(0, Number(watchedCashReceived) - total) 
+    : 0
 
   function handleProductChange(index: number, productId: string) {
     const product = products.find(p => p.id === productId)
@@ -70,19 +80,31 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
   }
 
   async function onFormSubmit(values: SaleFormValues) {
-    await onSubmit({
+    const saleData: SaleCreate = {
       items: values.items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
       })),
       notes: values.notes || null,
-    })
+      payment_method: values.payment_method,
+    }
+
+    // Add cash handling for cash payments
+    if (values.payment_method === 'cash' && values.cash_received) {
+      saleData.cash_received = values.cash_received
+      saleData.change_given = Math.max(0, values.cash_received - total)
+    }
+
+    await onSubmit(saleData)
     reset()
     onOpenChange(false)
   }
 
   const anyZeroQuantity = watchedItems.some(item => Number(item.quantity) === 0)
+  const insufficientCash = watchedPaymentMethod === 'cash' && 
+    (!watchedCashReceived || Number(watchedCashReceived) < total)
+  const canSubmit = !anyZeroQuantity && !insufficientCash
 
   return (
     <Dialog open={open} onOpenChange={open => { if (!open) reset(); onOpenChange(open) }}>
@@ -211,6 +233,65 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
             <span className="text-lg font-medium text-[#7A3E2E]">{formatCurrency(total)}</span>
           </div>
 
+          {/* Payment Method */}
+          <div>
+            <label className="text-xs text-[#B89080] mb-1 block">Payment Method</label>
+            <Controller
+              control={control}
+              name="payment_method"
+              render={({ field }) => (
+                <SelectNative
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  className="h-8 text-xs"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="gcash">GCash</option>
+                  <option value="paymaya">PayMaya</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </SelectNative>
+              )}
+            />
+          </div>
+
+          {/* Cash Calculator (only for cash payments) */}
+          {watchedPaymentMethod === 'cash' && (
+            <div className="bg-[#FDF6F0] rounded-lg border border-[#F2C4B0] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-[#B89080]">Amount Due:</span>
+                <span className="text-sm font-medium text-[#7A3E2E]">{formatCurrency(total)}</span>
+              </div>
+              
+              <div className="mb-2">
+                <label className="text-xs text-[#B89080] mb-1 block">Cash Received</label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] h-8 text-xs"
+                  {...register('cash_received')}
+                />
+              </div>
+
+              {watchedCashReceived && Number(watchedCashReceived) >= total && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[#B89080]">Change:</span>
+                  <span className="text-sm font-medium text-[#E8896A]">{formatCurrency(changeAmount)}</span>
+                </div>
+              )}
+
+              {watchedCashReceived && Number(watchedCashReceived) < total && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[#C05050]">Insufficient amount</span>
+                  <span className="text-xs text-[#C05050]">
+                    Need {formatCurrency(total - Number(watchedCashReceived))} more
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           <div>
             <label className="text-xs text-[#B89080] mb-1 block">Notes (optional)</label>
@@ -233,7 +314,7 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || anyZeroQuantity}
+              disabled={isSubmitting || !canSubmit}
               className="h-8 px-3 text-xs bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50"
             >
               {isSubmitting ? 'Recording…' : 'Record Sale'}
