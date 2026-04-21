@@ -17,7 +17,7 @@ const forgotPasswordSchema = z.object({
 })
 
 const resetPasswordSchema = z.object({
-  code: z.string().min(6, 'Enter the 6-digit code'),
+  code: z.string().min(6, 'Enter the reset code').max(8, 'Code is too long'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -167,8 +167,9 @@ export default function ForgotPasswordPage() {
             <label className="text-xs text-[#B89080] mb-1 block">Reset Code</label>
             <Input
               type="text"
-              placeholder="Enter 6-digit code"
-              maxLength={6}
+              placeholder="Enter reset code"
+              maxLength={8}
+              autoComplete="off"
               className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] text-center text-lg tracking-widest font-mono"
               {...resetForm.register('code')}
             />
