@@ -98,26 +98,6 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
     )
   }
 
-  // If only one payment method, show it as 100%
-  if (chartData.length === 1) {
-    const singleMethod = chartData[0]
-    return (
-      <div className="w-full h-full min-h-[200px] flex items-center justify-center">
-        <div className="text-center">
-          <div 
-            className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-white shadow-sm"
-            style={{ backgroundColor: singleMethod.color }}
-          >
-            <span className="text-white font-medium text-sm">100%</span>
-          </div>
-          <p className="text-sm text-[#7A3E2E] font-medium mb-1">{singleMethod.label}</p>
-          <p className="text-xs text-[#B89080]">{singleMethod.count} transactions</p>
-          <p className="text-xs text-[#7A3E2E] font-medium">{formatCurrency(singleMethod.total)}</p>
-        </div>
-      </div>
-    )
-  }
-
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {

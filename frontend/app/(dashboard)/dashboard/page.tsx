@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, Sparkles, Percent, BarChart2 } from 'lucide-react'
 import { useDashboardQuery, type DateRange } from '@/hooks/useDashboardQuery'
+import { useDateRangeQuery } from '@/context/DateRangeContext'
 import { useProducts } from '@/hooks/useProducts'
 import { useSales } from '@/hooks/useSales'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
@@ -52,6 +53,8 @@ export default function DashboardPage() {
   const [exporting, setExporting] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
 
+  const { startDate, endDate } = useDateRangeQuery()
+
   const {
     metrics, salesChartData, topProductsData, revenueChartData,
     recentSales, categoryPerformance, deadStock, loading, error, refresh,
@@ -60,6 +63,19 @@ export default function DashboardPage() {
   const { allProducts } = useProducts()
   const { createSale, allSales } = useSales()
   const { inventory } = useRealtimeInventory()
+
+  // Filter sales by date range for payment methods chart
+  const filteredSales = useMemo(() => {
+    if (!allSales || !startDate || !endDate) return []
+    
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    return allSales.filter(sale => {
+      const saleDate = new Date(sale.created_at)
+      return saleDate >= start && saleDate <= end
+    })
+  }, [allSales, startDate, endDate])
 
   async function handleExport() {
     setExporting(true)
@@ -86,8 +102,8 @@ export default function DashboardPage() {
   ), [loading, categoryPerformance])
 
   const paymentChart = useMemo(() => (
-    loading ? <ChartSkeleton /> : <PaymentMethodsChart data={recentSales || []} />
-  ), [loading, recentSales])
+    loading ? <ChartSkeleton /> : <PaymentMethodsChart data={filteredSales || []} />
+  ), [loading, filteredSales])
 
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
