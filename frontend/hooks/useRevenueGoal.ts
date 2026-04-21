@@ -68,14 +68,12 @@ export function useRevenueGoal() {
 
       if (updateError) {
         console.error('Failed to update revenue goal:', updateError)
-        toast.error('Failed to update revenue goal')
         return false
       }
 
       if (data) {
         const goalValue = Number(data.value)
         setGoal(goalValue)
-        toast.success('Revenue goal updated')
         return true
       }
 
@@ -83,7 +81,6 @@ export function useRevenueGoal() {
     } catch (err) {
       console.error('Failed to update revenue goal:', err)
       setError('Failed to update revenue goal')
-      toast.error('Failed to update revenue goal')
       return false
     }
   }
