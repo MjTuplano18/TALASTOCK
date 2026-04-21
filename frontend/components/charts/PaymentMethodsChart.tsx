@@ -158,9 +158,9 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
           <Pie
             data={chartData}
             cx="50%"
-            cy="45%"
+            cy="40%"
             innerRadius={0}
-            outerRadius={85}
+            outerRadius={75}
             paddingAngle={2}
             dataKey="total"
             nameKey="label"

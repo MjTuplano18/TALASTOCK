@@ -96,7 +96,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
+            <h1 className="text-lg font-bold text-[#7A3E2E]">Dashboard</h1>
           </div>
           
           {/* Action Buttons Row */}
@@ -158,15 +158,15 @@ export default function DashboardPage() {
             <HydrationSafeMetricCard label="Sales This Month" value={formatCurrency(metrics.total_sales_revenue)}
               icon={<TrendingUp className="w-4 h-4 text-[#E8896A]" />}
               change={revenueChange} />
-            <HydrationSafeMetricCard label="Low Stock Items" value={metrics.low_stock_count}
-              icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
-              danger={metrics.low_stock_count > 0} />
             <HydrationSafeMetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
               icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
               sub={`${metrics.total_sales_revenue > 0 ? ((metrics.gross_profit ?? 0) / metrics.total_sales_revenue * 100).toFixed(1) : '0'}% margin`} />
             <HydrationSafeMetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
               icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
               sub={`${metrics.total_sales_count ?? 0} orders`} />
+            <HydrationSafeMetricCard label="Low Stock Items" value={metrics.low_stock_count}
+              icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
+              danger={metrics.low_stock_count > 0} />
           </>
         )}
       </div>

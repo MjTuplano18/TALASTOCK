@@ -85,7 +85,7 @@ export function TopProductsChart({ data }: { data: TopProductData[] }) {
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
         data={sorted}
-        margin={{ top: 40, right: 8, left: 8, bottom: 20 }}
+        margin={{ top: 40, right: 8, left: 8, bottom: 40 }}
         barCategoryGap="15%"
         barSize={40}
       >
@@ -95,7 +95,7 @@ export function TopProductsChart({ data }: { data: TopProductData[] }) {
           tickLine={false}
           axisLine={false}
           tick={{ fontSize: 9, fill: '#B89080' }}
-          tickFormatter={v => v.length > 8 ? v.slice(0, 8) + '…' : v}
+          tickFormatter={v => v.length > 6 ? v.slice(0, 6) + '…' : v}
           interval={0}
           angle={-45}
           textAnchor="end"

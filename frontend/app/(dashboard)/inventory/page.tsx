@@ -185,7 +185,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h1 className="text-lg font-medium text-[#7A3E2E]">Inventory</h1>
+        <h1 className="text-lg font-bold text-[#7A3E2E]">Inventory</h1>
       </div>
 
       {lowStockItems.length > 0 && (

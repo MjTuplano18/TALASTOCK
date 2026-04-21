@@ -41,7 +41,7 @@ export function MetricCard({ label, value, sub, icon, danger, change }: MetricCa
         )}
       </div>
       <p className="text-xs text-[#B89080] mb-0.5">{label}</p>
-      <p className={cn('text-xl sm:text-2xl font-medium leading-tight', danger ? 'text-[#C05050]' : 'text-[#7A3E2E]')}>
+      <p className={cn('text-xl sm:text-2xl font-bold leading-tight', danger ? 'text-[#C05050]' : 'text-[#7A3E2E]')}>
         {value}
       </p>
       {sub && <p className="text-xs text-[#B89080] mt-0.5">{sub}</p>}

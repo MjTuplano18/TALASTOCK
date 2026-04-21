@@ -384,7 +384,7 @@ export default function SalesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h1 className="text-lg font-medium text-[#7A3E2E]">Sales</h1>
+        <h1 className="text-lg font-bold text-[#7A3E2E]">Sales</h1>
       </div>
 
       {error && <div className="text-sm text-[#C05050]">{error}</div>}

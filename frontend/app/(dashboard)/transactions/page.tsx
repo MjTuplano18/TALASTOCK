@@ -75,10 +75,7 @@ export default function TransactionsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-medium text-[#7A3E2E]">Transactions</h1>
-          <p className="text-xs text-[#B89080] mt-0.5">
-            View and export all sales transactions
-          </p>
+          <h1 className="text-lg font-bold text-[#7A3E2E]">Transactions</h1>
         </div>
       </div>
 

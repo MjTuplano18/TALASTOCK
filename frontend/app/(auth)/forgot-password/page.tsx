@@ -10,7 +10,8 @@ import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Mail, Key } from 'lucide-react'
+import { ArrowLeft, Key } from 'lucide-react'
+import Image from 'next/image'
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -94,13 +95,20 @@ export default function ForgotPasswordPage() {
   if (step === 'email') {
     return (
       <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
-          <div className="mb-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-6 h-6 text-[#E8896A]" />
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-6 shadow-lg">
+          <div className="mb-6 text-center">
+            <div className="mb-4">
+              <Image
+                src="/images/talastock_icon-removebg-preview.png"
+                alt="Talastock Logo"
+                width={120}
+                height={120}
+                className="mx-auto"
+                priority
+              />
             </div>
             <h1 className="text-2xl font-medium text-[#7A3E2E] mb-1">Forgot Password</h1>
-            <p className="text-xs text-[#B89080]">
+            <p className="text-sm text-[#B89080]">
               Enter your email to receive a reset code
             </p>
           </div>
@@ -147,17 +155,17 @@ export default function ForgotPasswordPage() {
 
   // Step 2: Enter Code and New Password
   return (
-    <div className="w-full max-w-sm">
-      <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
+    <div className="w-full max-w-md">
+      <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-lg">
         <div className="mb-8 text-center">
-          <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mx-auto mb-4">
-            <Key className="w-6 h-6 text-[#E8896A]" />
+          <div className="w-14 h-14 rounded-xl bg-[#FDE8DF] flex items-center justify-center mx-auto mb-4">
+            <Key className="w-7 h-7 text-[#E8896A]" />
           </div>
-          <h1 className="text-2xl font-medium text-[#7A3E2E] mb-1">Reset Password</h1>
-          <p className="text-xs text-[#B89080]">
+          <h1 className="text-2xl font-medium text-[#7A3E2E] mb-2">Reset Password</h1>
+          <p className="text-sm text-[#B89080]">
             Enter the code sent to
           </p>
-          <p className="text-xs font-medium text-[#7A3E2E] mt-1">
+          <p className="text-sm font-medium text-[#7A3E2E] mt-1">
             {email}
           </p>
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
@@ -47,18 +48,18 @@ export function Sidebar() {
 
   const NavContent = ({ collapsed = false }: { collapsed?: boolean }) => (
     <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className={cn("px-5 py-5 border-b border-[#F2C4B0]", collapsed && "px-3")}>
-        {collapsed ? (
-          <div className="w-8 h-8 rounded-lg bg-[#E8896A] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">T</span>
-          </div>
-        ) : (
-          <>
-            <h1 className="text-base font-medium text-[#7A3E2E]">Talastock</h1>
-            <p className="text-xs text-[#B89080]">Inventory & Sales</p>
-          </>
-        )}
+      {/* Logo at top */}
+      <div className={cn("px-5 py-4 border-b border-[#F2C4B0] flex items-center justify-center", collapsed && "px-3 py-3")}>
+        <div className="w-12 h-12 flex items-center justify-center">
+          <Image
+            src="/images/talastock_icon_only.png"
+            alt="Talastock"
+            width={48}
+            height={48}
+            className="w-full h-auto"
+            priority
+          />
+        </div>
       </div>
 
       {/* Nav links */}
@@ -68,6 +69,7 @@ export function Sidebar() {
       >
         {navItems.map(({ label, href, icon: Icon }) => {
           const active = pathname.startsWith(href)
+          
           return (
             <Link
               key={href}

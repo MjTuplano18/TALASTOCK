@@ -308,7 +308,7 @@ export default function POSPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-lg font-medium text-[#7A3E2E]">Point of Sale</h1>
+        <h1 className="text-lg font-bold text-[#7A3E2E]">Point of Sale</h1>
       </div>
 
       {/* Offline Banner */}

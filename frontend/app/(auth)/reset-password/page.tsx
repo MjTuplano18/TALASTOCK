@@ -93,7 +93,7 @@ export default function ResetPasswordPage() {
   if (checkingToken) {
     return (
       <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-6 shadow-lg">
           <div className="flex flex-col items-center justify-center py-8">
             <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mb-4 animate-pulse">
               <svg
@@ -121,12 +121,12 @@ export default function ResetPasswordPage() {
   if (tokenError) {
     return (
       <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
-          <div className="mb-8 text-center">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-6 shadow-lg">
+          <div className="mb-6 text-center">
             <div className="w-12 h-12 rounded-xl bg-[#FDECEA] flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-6 h-6 text-[#C05050]" />
             </div>
-            <h1 className="text-2xl font-medium text-[#7A3E2E] mb-2">Link Expired</h1>
+            <h1 className="text-2xl font-semibold text-[#7A3E2E] mb-1">Link Expired</h1>
             <p className="text-sm text-[#B89080]">
               This password reset link has expired or is invalid.
             </p>
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
             <Link href="/forgot-password">
               <Button
                 type="button"
-                className="w-full bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+                className="w-full bg-[#E8896A] hover:bg-[#C1614A] text-white border-0 h-11 text-sm font-medium shadow-md hover:shadow-lg transition-all"
               >
                 Request New Link
               </Button>
@@ -146,7 +146,7 @@ export default function ResetPasswordPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+                className="w-full border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] h-11 text-sm"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Login
@@ -162,12 +162,12 @@ export default function ResetPasswordPage() {
   if (resetSuccess) {
     return (
       <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
-          <div className="mb-8 text-center">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-6 shadow-lg">
+          <div className="mb-6 text-center">
             <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-6 h-6 text-[#E8896A]" />
             </div>
-            <h1 className="text-2xl font-medium text-[#7A3E2E] mb-2">Password Reset!</h1>
+            <h1 className="text-2xl font-semibold text-[#7A3E2E] mb-1">Password Reset!</h1>
             <p className="text-sm text-[#B89080]">
               Your password has been successfully reset.
             </p>
@@ -181,7 +181,7 @@ export default function ResetPasswordPage() {
             <Link href="/login">
               <Button
                 type="button"
-                className="w-full bg-[#E8896A] hover:bg-[#C1614A] text-white border-0"
+                className="w-full bg-[#E8896A] hover:bg-[#C1614A] text-white border-0 h-11 text-sm font-medium shadow-md hover:shadow-lg transition-all"
               >
                 Go to Login
               </Button>
@@ -215,21 +215,21 @@ export default function ResetPasswordPage() {
   // Show reset password form
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-white rounded-2xl border border-[#F2C4B0] p-8 shadow-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-medium text-[#7A3E2E] mb-1">Reset Password</h1>
-          <p className="text-xs text-[#B89080]">
+      <div className="bg-white rounded-xl border border-[#F2C4B0] p-6 shadow-lg">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-[#7A3E2E] mb-1">Reset Password</h1>
+          <p className="text-sm text-[#B89080]">
             Enter your new password below
           </p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div>
-            <label className="text-xs text-[#B89080] mb-1 block">New Password</label>
+            <label className="text-xs font-medium text-[#7A3E2E] mb-1.5 block">New Password</label>
             <Input
               type="password"
               placeholder="••••••••"
-              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E]"
+              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] h-11 text-sm"
               {...register('password')}
             />
             {errors.password && (
@@ -243,11 +243,11 @@ export default function ResetPasswordPage() {
           </div>
 
           <div>
-            <label className="text-xs text-[#B89080] mb-1 block">Confirm Password</label>
+            <label className="text-xs font-medium text-[#7A3E2E] mb-1.5 block">Confirm Password</label>
             <Input
               type="password"
               placeholder="••••••••"
-              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E]"
+              className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] h-11 text-sm"
               {...register('confirmPassword')}
             />
             {errors.confirmPassword && (
@@ -255,7 +255,7 @@ export default function ResetPasswordPage() {
             )}
           </div>
 
-          <div className="bg-[#FDE8DF] rounded-lg p-3 mt-2">
+          <div className="bg-[#FDE8DF] rounded-lg p-3">
             <p className="text-xs text-[#7A3E2E] font-medium mb-2">Password Requirements:</p>
             <ul className="text-xs text-[#B89080] space-y-1">
               <li className="flex items-center gap-2">
@@ -282,7 +282,7 @@ export default function ResetPasswordPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0 mt-2"
+            className="bg-[#E8896A] hover:bg-[#C1614A] text-white border-0 h-11 text-sm font-medium shadow-md hover:shadow-lg transition-all mt-1"
           >
             {loading ? 'Resetting Password…' : 'Reset Password'}
           </Button>
@@ -291,7 +291,7 @@ export default function ResetPasswordPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF]"
+              className="w-full border-[#F2C4B0] text-[#7A3E2E] hover:bg-[#FDE8DF] h-11 text-sm"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Login
