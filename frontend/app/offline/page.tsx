@@ -1,3 +1,5 @@
+'use client'
+
 import { WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -14,12 +16,12 @@ export default function OfflinePage() {
 
         {/* Title */}
         <h1 className="text-2xl font-medium text-[#7A3E2E] mb-3">
-          You're Offline
+          You&apos;re Offline
         </h1>
 
         {/* Description */}
         <p className="text-sm text-[#B89080] mb-6">
-          It looks like you've lost your internet connection. Don't worry, your changes are saved locally and will sync when you're back online.
+          It looks like you&apos;ve lost your internet connection. Don&apos;t worry, your changes are saved locally and will sync when you&apos;re back online.
         </p>
 
         {/* Tips */}
