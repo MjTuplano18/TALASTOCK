@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { QueryProvider } from '@/components/providers/QueryProvider'
+import { UnregisterServiceWorker } from './UnregisterServiceWorker'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={plusJakartaSans.variable}>
       <body className={`antialiased ${plusJakartaSans.className}`}>
+        <UnregisterServiceWorker />
         <QueryProvider>
           {children}
           <Toaster 

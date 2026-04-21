@@ -4,56 +4,9 @@
  */
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-    console.log('Service workers not supported')
-    return null
-  }
-
-  try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-    })
-
-    console.log('Service worker registered:', registration.scope)
-
-    // Check for updates
-    registration.addEventListener('updatefound', () => {
-      const newWorker = registration.installing
-      if (!newWorker) return
-
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // New service worker available
-          console.log('New service worker available')
-          
-          // Notify user about update
-          if (window.confirm('A new version is available. Reload to update?')) {
-            newWorker.postMessage({ type: 'SKIP_WAITING' })
-            window.location.reload()
-          }
-        }
-      })
-    })
-
-    // Listen for messages from service worker
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data.type === 'SYNC_QUEUE') {
-        // Trigger queue processing
-        const syncEvent = new CustomEvent('sw-sync-queue')
-        window.dispatchEvent(syncEvent)
-      }
-    })
-
-    // Handle controller change (new SW activated)
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('Service worker controller changed')
-    })
-
-    return registration
-  } catch (error) {
-    console.error('Service worker registration failed:', error)
-    return null
-  }
+  // Temporarily disabled - causing redirect issues
+  console.log('Service worker registration disabled')
+  return null
 }
 
 /**

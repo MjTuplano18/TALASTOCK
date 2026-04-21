@@ -1,5 +1,4 @@
 /** @type {import('next').NextConfig} */
-import { withSentryConfig } from '@sentry/nextjs'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://*.supabase.co'
 const supabaseHost = supabaseUrl.replace('https://', '')
@@ -10,7 +9,7 @@ const ContentSecurityPolicy = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' https://fonts.gstatic.com data:;
   img-src 'self' data: blob: https:;
-  connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://api.groq.com https://generativelanguage.googleapis.com https://*.ingest.sentry.io;
+  connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://api.groq.com https://generativelanguage.googleapis.com;
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';
@@ -62,49 +61,6 @@ const nextConfig = {
       bodySizeLimit: '1mb',
     },
   },
-  // Sentry configuration
-  sentry: {
-    hideSourceMaps: true,
-    widenClientFileUpload: true,
-  },
 }
 
-// Wrap with Sentry config
-export default withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
-
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-
-  // Only print logs for uploading source maps in CI
-  silent: !process.env.CI,
-
-  // For all available options, see:
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
-
-  // Automatically annotate React components to show their full name in breadcrumbs and session replay
-  reactComponentAnnotation: {
-    enabled: true,
-  },
-
-  // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-  // This can increase your server load as well as your hosting bill.
-  // Note: Check that the Sentry DSN in `sentry.client.config.ts` includes a trailing slash.
-  tunnelRoute: '/monitoring',
-
-  // Hides source maps from generated client bundles
-  hideSourceMaps: true,
-
-  // Automatically tree-shake Sentry logger statements to reduce bundle size
-  disableLogger: true,
-
-  // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-  // See the following for more information:
-  // https://docs.sentry.io/product/crons/
-  // https://vercel.com/docs/cron-jobs
-  automaticVercelMonitors: true,
-})
+export default nextConfig

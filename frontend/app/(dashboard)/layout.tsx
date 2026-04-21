@@ -5,12 +5,12 @@ import { PageErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { PageTransition } from '@/components/shared/PageTransition'
 import { SkipNavigation } from '@/components/shared/SkipNavigation'
 import { OfflineIndicator } from '@/components/shared/OfflineIndicator'
-import { useOfflineSupport } from '@/hooks/useOfflineSupport'
+// import { useOfflineSupport } from '@/hooks/useOfflineSupport' // Disabled - causing redirect issues
 import { DateRangeProvider } from '@/context/DateRangeContext'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Initialize offline support
-  useOfflineSupport()
+  // Initialize offline support - DISABLED temporarily
+  // useOfflineSupport()
 
   return (
     <DateRangeProvider>
