@@ -9,7 +9,7 @@ export function useRevenueGoal() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch goal from database
+  // Fetch goal from database using Supabase directly
   async function fetchGoal() {
     try {
       setLoading(true)
@@ -22,18 +22,20 @@ export function useRevenueGoal() {
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/settings/monthly_revenue_goal`, {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      })
+      // Query Supabase directly instead of backend API
+      const { data, error: fetchError } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('key', 'monthly_revenue_goal')
+        .single()
 
-      if (response.ok) {
-        const result = await response.json()
-        const goalValue = Number(result.data.value)
+      if (fetchError) {
+        console.error('Failed to fetch revenue goal:', fetchError)
+        setGoal(DEFAULT_GOAL)
+      } else if (data) {
+        const goalValue = Number(data.value)
         setGoal(goalValue || DEFAULT_GOAL)
       } else {
-        // If setting doesn't exist, use default
         setGoal(DEFAULT_GOAL)
       }
     } catch (err) {
@@ -45,7 +47,7 @@ export function useRevenueGoal() {
     }
   }
 
-  // Update goal in database
+  // Update goal in database using Supabase directly
   async function updateGoal(newGoal: number) {
     try {
       setError(null)
@@ -56,26 +58,32 @@ export function useRevenueGoal() {
         return false
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/settings/monthly_revenue_goal`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ value: newGoal }),
-      })
+      // Update Supabase directly instead of backend API
+      const { data, error: updateError } = await supabase
+        .from('settings')
+        .update({ value: newGoal })
+        .eq('key', 'monthly_revenue_goal')
+        .select()
+        .single()
 
-      if (!response.ok) {
-        throw new Error('Failed to update revenue goal')
+      if (updateError) {
+        console.error('Failed to update revenue goal:', updateError)
+        toast.error('Failed to update revenue goal')
+        return false
       }
 
-      const result = await response.json()
-      const goalValue = Number(result.data.value)
-      setGoal(goalValue)
-      return true
+      if (data) {
+        const goalValue = Number(data.value)
+        setGoal(goalValue)
+        toast.success('Revenue goal updated')
+        return true
+      }
+
+      return false
     } catch (err) {
       console.error('Failed to update revenue goal:', err)
       setError('Failed to update revenue goal')
+      toast.error('Failed to update revenue goal')
       return false
     }
   }
