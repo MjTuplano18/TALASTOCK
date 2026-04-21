@@ -86,8 +86,8 @@ export default function DashboardPage() {
   ), [loading, categoryPerformance])
 
   const paymentChart = useMemo(() => (
-    loading ? <ChartSkeleton /> : <PaymentMethodsChart data={allSales || []} />
-  ), [loading, allSales])
+    loading ? <ChartSkeleton /> : <PaymentMethodsChart data={recentSales || []} />
+  ), [loading, recentSales])
 
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
