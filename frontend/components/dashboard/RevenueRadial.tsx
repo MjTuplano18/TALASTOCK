@@ -1,57 +1,58 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Pencil, Check } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useRevenueGoal } from '@/hooks/useRevenueGoal'
+import { toast } from 'sonner'
 
-const STORAGE_KEY = 'talastock_revenue_target'
-const DEFAULT_TARGET = 50000
 const SIZE = 180
 const STROKE = 14
 const R = (SIZE - STROKE) / 2
 const CIRCUMFERENCE = 2 * Math.PI * R
-
-function getStoredTarget(): number {
-  if (typeof window === 'undefined') return DEFAULT_TARGET
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return stored ? Number(stored) : DEFAULT_TARGET
-}
 
 interface RevenueRadialProps {
   current: number
   loading?: boolean
 }
 
-export function RevenueRadial({ current, loading }: RevenueRadialProps) {
-  const [target, setTarget] = useState<number>(DEFAULT_TARGET)
+export function RevenueRadial({ current, loading: dataLoading }: RevenueRadialProps) {
+  const { goal, loading: goalLoading, updateGoal } = useRevenueGoal()
   const [editing, setEditing] = useState(false)
   const [inputVal, setInputVal] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    setTarget(getStoredTarget())
-  }, [])
-
-  const pct = Math.min(current / target, 1)
+  const pct = Math.min(current / goal, 1)
   const dashOffset = CIRCUMFERENCE * (1 - pct)
-  const remaining = Math.max(target - current, 0)
+  const remaining = Math.max(goal - current, 0)
   const isComplete = pct >= 1
 
   function startEdit() {
-    setInputVal(String(target))
+    setInputVal(String(goal))
     setEditing(true)
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     const val = Number(inputVal.replace(/[^0-9.]/g, ''))
-    if (val > 0) {
-      setTarget(val)
-      localStorage.setItem(STORAGE_KEY, String(val))
+    if (val <= 0) {
+      toast.error('Please enter a valid goal amount')
+      return
     }
-    setEditing(false)
+
+    setSaving(true)
+    const success = await updateGoal(val)
+    setSaving(false)
+
+    if (success) {
+      toast.success('Revenue goal updated successfully')
+      setEditing(false)
+    } else {
+      toast.error('Failed to update revenue goal')
+    }
   }
 
-  if (loading) {
+  if (dataLoading || goalLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 py-4">
         <div className="w-[180px] h-[180px] rounded-full bg-[#FDE8DF] animate-pulse" />
@@ -120,15 +121,17 @@ export function RevenueRadial({ current, loading }: RevenueRadialProps) {
                 value={inputVal}
                 onChange={e => setInputVal(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && saveEdit()}
-                className="w-20 border-b border-[#E8896A] bg-transparent text-xs text-[#7A3E2E] focus:outline-none text-center"
+                disabled={saving}
+                className="w-20 border-b border-[#E8896A] bg-transparent text-xs text-[#7A3E2E] focus:outline-none text-center disabled:opacity-50"
               />
             </span>
           ) : (
-            <span className="text-xs font-medium text-[#7A3E2E]">{formatCurrency(target)}</span>
+            <span className="text-xs font-medium text-[#7A3E2E]">{formatCurrency(goal)}</span>
           )}
           <button
             onClick={editing ? saveEdit : startEdit}
-            className="text-[#B89080] hover:text-[#7A3E2E] transition-colors ml-0.5"
+            disabled={saving}
+            className="text-[#B89080] hover:text-[#7A3E2E] transition-colors ml-0.5 disabled:opacity-50"
           >
             {editing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
           </button>

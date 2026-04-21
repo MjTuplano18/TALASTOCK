@@ -2,6 +2,7 @@
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://*.supabase.co'
 const supabaseHost = supabaseUrl.replace('https://', '')
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
 const ContentSecurityPolicy = `
   default-src 'self';
@@ -9,7 +10,7 @@ const ContentSecurityPolicy = `
   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   font-src 'self' https://fonts.gstatic.com data:;
   img-src 'self' data: blob: https:;
-  connect-src 'self' https://${supabaseHost} wss://${supabaseHost} https://api.groq.com https://generativelanguage.googleapis.com;
+  connect-src 'self' ${apiUrl} https://${supabaseHost} wss://${supabaseHost} https://api.groq.com https://generativelanguage.googleapis.com;
   frame-ancestors 'none';
   base-uri 'self';
   form-action 'self';

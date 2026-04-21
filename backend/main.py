@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
-from routers import products, inventory, sales, categories
+from routers import products, inventory, sales, categories, settings
 from middleware.rate_limit import RateLimitMiddleware
 from middleware.logging import StructuredLoggingMiddleware
 
@@ -81,6 +81,7 @@ app.include_router(products.router, prefix="/api/v1")
 app.include_router(inventory.router, prefix="/api/v1")
 app.include_router(sales.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
+app.include_router(settings.router, prefix="/api/v1")
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
