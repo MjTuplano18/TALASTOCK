@@ -50,8 +50,8 @@ export default function LoginPage() {
           <Image
             src="/images/talastock_icon-removebg-preview.png"
             alt="Talastock"
-            width={2500}
-            height={2500}
+            width={800}
+            height={800}
             className="w-full h-auto"
             priority
           />
