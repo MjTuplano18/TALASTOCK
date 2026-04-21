@@ -15,6 +15,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'Talastock - Inventory & Sales Dashboard',
   description: 'Modern inventory and sales management dashboard for Filipino SMEs',
+  icons: {
+    icon: '/images/talastock_icon_only.png',
+    shortcut: '/images/talastock_icon_only.png',
+    apple: '/images/talastock_icon_only.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
