@@ -16,8 +16,11 @@ export const metadata: Metadata = {
   title: 'Talastock - Inventory & Sales Dashboard',
   description: 'Modern inventory and sales management dashboard for Filipino SMEs',
   icons: {
-    icon: '/images/talastock_icon_only.png',
-    shortcut: '/images/talastock_icon_only.png',
+    icon: [
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/images/talastock_icon_only.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.png',
     apple: '/images/talastock_icon_only.png',
   },
 }
@@ -25,6 +28,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={plusJakartaSans.variable}>
+      <head>
+        <link rel="icon" type="image/png" href="/favicon.png" />
+        <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/images/talastock_icon_only.png" />
+      </head>
       <body className={`antialiased ${plusJakartaSans.className}`}>
         <UnregisterServiceWorker />
         <QueryProvider>
