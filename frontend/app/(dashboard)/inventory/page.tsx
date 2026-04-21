@@ -183,12 +183,14 @@ export default function InventoryPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-lg font-medium text-[#7A3E2E] mb-4">Inventory</h1>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h1 className="text-lg font-medium text-[#7A3E2E]">Inventory</h1>
+      </div>
 
       {lowStockItems.length > 0 && (
-        <div className="flex items-center gap-2 bg-[#FDECEA] border border-[#F2C4B0] rounded-xl px-4 py-3 mb-3">
-          <AlertTriangle className="w-4 h-4 text-[#C05050] shrink-0" />
+        <div className="flex items-start gap-2 bg-[#FDECEA] border border-[#F2C4B0] rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-[#C05050] shrink-0 mt-0.5" />
           <p className="text-sm text-[#C05050]">
             <span className="font-medium">{lowStockItems.length} {lowStockItems.length === 1 ? 'product' : 'products'}</span>
             {' '}low on stock or out of stock — restock soon.
@@ -196,9 +198,9 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {error && <div className="text-sm text-[#C05050] mb-3">{error}</div>}
+      {error && <div className="text-sm text-[#C05050]">{error}</div>}
 
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2">
         <SearchInput value={search} onChange={setSearch} placeholder="Search product or SKU…" />
         <FilterSelect value={statusFilter} onChange={setStatusFilter} placeholder="All Status"
           options={[
@@ -246,75 +248,140 @@ export default function InventoryPage() {
               deleteLabel="Delete"
             />
             
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#F2C4B0]">
-                  <th className="py-3 px-4 w-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === paginated.length && paginated.length > 0}
-                      onChange={toggleSelectAll}
-                      className="w-3.5 h-3.5 accent-[#E8896A] cursor-pointer"
-                    />
-                  </th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Product</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">SKU</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Category</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Qty</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium" title="Click to edit">
-                    Threshold ✎
-                  </th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Last Updated</th>
-                  <th className="py-3 px-4" />
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map(item => (
-                  <tr key={item.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
-                    <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+            {/* Desktop table view */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#F2C4B0]">
+                    <th className="py-3 px-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size === paginated.length && paginated.length > 0}
+                        onChange={toggleSelectAll}
+                        className="w-3.5 h-3.5 accent-[#E8896A] cursor-pointer"
+                      />
+                    </th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Product</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">SKU</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Category</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Qty</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium" title="Click to edit">
+                      Threshold ✎
+                    </th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Status</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Last Updated</th>
+                    <th className="py-3 px-4" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map(item => (
+                    <tr key={item.id} className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0]">
+                      <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          onChange={() => toggleSelection(item.id)}
+                          className="w-3.5 h-3.5 accent-[#E8896A] cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3 px-4 font-medium text-[#7A3E2E]">
+                        <HighlightText text={item.products?.name ?? '—'} highlight={debouncedSearch} />
+                      </td>
+                      <td className="py-3 px-4 text-[#B89080] font-mono text-xs">
+                        <HighlightText text={item.products?.sku ?? '—'} highlight={debouncedSearch} />
+                      </td>
+                      <td className="py-3 px-4 text-[#7A3E2E]">{item.products?.categories?.name ?? '—'}</td>
+                      <td className="py-3 px-4 text-[#7A3E2E]">{item.quantity}</td>
+                      <td className="py-3 px-4">
+                        <ThresholdCell item={item} onSave={handleThresholdSave} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <StockBadge status={getStockStatus(item.quantity, item.low_stock_threshold)} />
+                      </td>
+                      <td className="py-3 px-4 text-[#B89080] text-xs">
+                        <RelativeTime date={item.updated_at} />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button onClick={() => setHistoryItem(item)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors"
+                            title="View stock history">
+                            <History className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => setAdjustTarget(item)}
+                            className="flex items-center gap-1 px-2.5 py-1 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
+                            <Plus className="w-3 h-3" /><Minus className="w-3 h-3" />
+                            Adjust
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card view */}
+            <div className="lg:hidden space-y-3 p-4">
+              {paginated.map(item => (
+                <div key={item.id} className="border border-[#F2C4B0] rounded-lg p-3 bg-white">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start gap-2">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(item.id)}
                         onChange={() => toggleSelection(item.id)}
-                        className="w-3.5 h-3.5 accent-[#E8896A] cursor-pointer"
+                        className="w-4 h-4 accent-[#E8896A] cursor-pointer mt-0.5"
                       />
-                    </td>
-                    <td className="py-3 px-4 font-medium text-[#7A3E2E]">
-                      <HighlightText text={item.products?.name ?? '—'} highlight={debouncedSearch} />
-                    </td>
-                    <td className="py-3 px-4 text-[#B89080] font-mono text-xs">
-                      <HighlightText text={item.products?.sku ?? '—'} highlight={debouncedSearch} />
-                    </td>
-                    <td className="py-3 px-4 text-[#7A3E2E]">{item.products?.categories?.name ?? '—'}</td>
-                    <td className="py-3 px-4 text-[#7A3E2E]">{item.quantity}</td>
-                    <td className="py-3 px-4">
-                      <ThresholdCell item={item} onSave={handleThresholdSave} />
-                    </td>
-                    <td className="py-3 px-4">
-                      <StockBadge status={getStockStatus(item.quantity, item.low_stock_threshold)} />
-                    </td>
-                    <td className="py-3 px-4 text-[#B89080] text-xs">
-                      <RelativeTime date={item.updated_at} />
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => setHistoryItem(item)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors"
-                          title="View stock history">
-                          <History className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => setAdjustTarget(item)}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
-                          <Plus className="w-3 h-3" /><Minus className="w-3 h-3" />
-                          Adjust
-                        </button>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-[#7A3E2E] text-sm">
+                          <HighlightText text={item.products?.name ?? '—'} highlight={debouncedSearch} />
+                        </h3>
+                        <p className="text-xs text-[#B89080] font-mono">
+                          <HighlightText text={item.products?.sku ?? '—'} highlight={debouncedSearch} />
+                        </p>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <StockBadge status={getStockStatus(item.quantity, item.low_stock_threshold)} />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div>
+                      <span className="text-[#B89080]">Category:</span>
+                      <span className="text-[#7A3E2E] ml-1">{item.products?.categories?.name ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[#B89080]">Quantity:</span>
+                      <span className="text-[#7A3E2E] ml-1 font-medium">{item.quantity}</span>
+                    </div>
+                    <div>
+                      <span className="text-[#B89080]">Threshold:</span>
+                      <ThresholdCell item={item} onSave={handleThresholdSave} />
+                    </div>
+                    <div>
+                      <span className="text-[#B89080]">Updated:</span>
+                      <span className="text-[#7A3E2E] ml-1">
+                        <RelativeTime date={item.updated_at} />
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pt-2 border-t border-[#F2C4B0]">
+                    <button onClick={() => setHistoryItem(item)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
+                      <History className="w-3.5 h-3.5" />
+                      History
+                    </button>
+                    <button onClick={() => setAdjustTarget(item)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors">
+                      <Plus className="w-3 h-3" /><Minus className="w-3 h-3" />
+                      Adjust
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
             <Pagination page={page} totalPages={totalPages} totalItems={filtered.length}
               pageSize={PAGE_SIZE} onPageChange={setPage} />
           </>

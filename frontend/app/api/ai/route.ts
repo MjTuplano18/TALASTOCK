@@ -268,14 +268,18 @@ If no items need restocking, return: []`
   }
 
   if (type === 'report_summary') {
-    const { metrics, topProducts, recentSales, period } = body
+    const { metrics, topProducts, recentSales, period, forceRefresh } = body
 
     const bucket = Math.floor(Date.now() / CACHE_TTL.REPORT_SUMMARY)
     const cacheKey = `ai-report:${userId}:${bucket}`
-    const cached = getCached<string>(cacheKey)
-    if (cached) {
-      await logAICall({ userId, type, cached: true })
-      return NextResponse.json({ summary: cached, cached: true })
+    
+    // Skip cache if forceRefresh is true
+    if (!forceRefresh) {
+      const cached = getCached<string>(cacheKey)
+      if (cached) {
+        await logAICall({ userId, type, cached: true })
+        return NextResponse.json({ summary: cached, cached: true })
+      }
     }
 
     const summary = {

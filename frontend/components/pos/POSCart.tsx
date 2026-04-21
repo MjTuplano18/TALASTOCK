@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { ShoppingCart, Plus, Minus, Trash2, AlertTriangle, Tag, X } from 'lucide-react'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatCurrency } from '@/lib/utils'
 import type { CartItem, DiscountType } from '@/types'
 
@@ -33,11 +35,21 @@ export function POSCart({
   onOpenDiscountModal,
   onRemoveDiscount,
 }: POSCartProps) {
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0)
   const discountAmount = discount?.amount ?? 0
   const cartTotal = subtotal - discountAmount
   const hasStockWarnings = items.some(item => item.stockWarning)
   const isEmpty = items.length === 0
+
+  function handleClearClick() {
+    setClearConfirmOpen(true)
+  }
+
+  function confirmClear() {
+    onClearCart()
+  }
 
   // Helper function to format discount label
   const getDiscountLabel = () => {
@@ -65,7 +77,7 @@ export function POSCart({
         </div>
         {!isEmpty && (
           <button
-            onClick={onClearCart}
+            onClick={handleClearClick}
             disabled={isProcessing}
             className="text-xs text-[#B89080] hover:text-[#C05050] transition-colors disabled:opacity-50"
           >
@@ -177,6 +189,17 @@ export function POSCart({
           )}
         </button>
       </div>
+      
+      {/* Clear Cart Confirmation Dialog */}
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="Clear Cart?"
+        description={`This will remove all ${items.length} item${items.length > 1 ? 's' : ''} from your cart.`}
+        confirmLabel="Clear Cart"
+        onConfirm={confirmClear}
+        danger={false}
+      />
     </div>
   )
 }
@@ -231,17 +254,44 @@ function CartItemComponent({ item, onUpdateQuantity, onRemove, disabled }: CartI
             <Minus className="w-3.5 h-3.5" />
           </button>
           <input
-            type="number"
-            min="1"
+            type="text"
+            inputMode="numeric"
             value={quantity}
             onChange={(e) => {
+              const value = e.target.value
+              // Allow only numbers and empty string (for clearing)
+              if (/^\d*$/.test(value)) {
+                const newQty = parseInt(value) || 0
+                if (newQty >= 0 && newQty <= 9999) { // Allow 0 temporarily for editing
+                  onUpdateQuantity(product.id, newQty || 1) // Use 1 if 0
+                }
+              }
+            }}
+            onFocus={(e) => {
+              // Select all text when focused for easy replacement
+              e.target.select()
+            }}
+            onBlur={(e) => {
+              // Ensure minimum quantity of 1 on blur
               const newQty = parseInt(e.target.value) || 1
-              if (newQty > 0) {
-                onUpdateQuantity(product.id, newQty)
+              if (newQty < 1) {
+                onUpdateQuantity(product.id, 1)
+              }
+            }}
+            onKeyDown={(e) => {
+              // Allow backspace, delete, arrow keys, tab, etc.
+              if (e.key === 'Backspace' || e.key === 'Delete' || 
+                  e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
+                  e.key === 'Tab' || e.key === 'Enter') {
+                return
+              }
+              // Only allow digits
+              if (!/^\d$/.test(e.key)) {
+                e.preventDefault()
               }
             }}
             disabled={disabled}
-            className="w-14 h-8 text-center text-sm font-medium text-[#7A3E2E] border border-[#F2C4B0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8896A] focus:border-transparent disabled:opacity-50"
+            className="w-14 h-8 text-center text-sm font-medium text-[#7A3E2E] border border-[#F2C4B0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8896A] focus:border-transparent disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <button
             onClick={handleIncrement}

@@ -19,26 +19,27 @@ interface ProductSearchResult extends Product {
 export function ProductSearch({ onProductSelect, disabled }: ProductSearchProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ProductSearchResult[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const debouncedQuery = useDebounce(query, 150)
 
+  // Load all products on mount, then filter based on search
   useEffect(() => {
-    async function searchProducts() {
-      if (!debouncedQuery.trim()) {
-        setResults([])
-        return
-      }
-
+    async function loadProducts() {
       setLoading(true)
       try {
-        const searchTerm = `%${debouncedQuery.toLowerCase()}%`
-        
-        const { data, error } = await supabase
+        let queryBuilder = supabase
           .from('products')
           .select('*, categories(name), inventory(quantity, low_stock_threshold)')
           .eq('is_active', true)
-          .or(`name.ilike.${searchTerm},sku.ilike.${searchTerm}`)
-          .limit(10)
+          .order('name')
+
+        // If there's a search query, filter by it
+        if (debouncedQuery.trim()) {
+          const searchTerm = `%${debouncedQuery.toLowerCase()}%`
+          queryBuilder = queryBuilder.or(`name.ilike.${searchTerm},sku.ilike.${searchTerm}`)
+        }
+
+        const { data, error } = await queryBuilder.limit(50) // Show more products
 
         if (error) throw error
 
@@ -60,14 +61,13 @@ export function ProductSearch({ onProductSelect, disabled }: ProductSearchProps)
       }
     }
 
-    searchProducts()
+    loadProducts()
   }, [debouncedQuery])
 
   function handleProductClick(product: ProductSearchResult) {
     if (disabled) return
     onProductSelect(product)
-    setQuery('') // Clear search after selection
-    setResults([])
+    // Don't clear search - keep showing products for easy multiple selections
   }
 
   return (
@@ -100,16 +100,6 @@ export function ProductSearch({ onProductSelect, disabled }: ProductSearchProps)
             </div>
             <p className="text-sm text-[#7A3E2E] font-medium mb-1">No products found</p>
             <p className="text-xs text-[#B89080]">Try a different search term</p>
-          </div>
-        )}
-
-        {!loading && results.length === 0 && !query.trim() && (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-[#FDE8DF] flex items-center justify-center mb-3">
-              <Search className="w-6 h-6 text-[#E8896A]" />
-            </div>
-            <p className="text-sm text-[#7A3E2E] font-medium mb-1">Search for products</p>
-            <p className="text-xs text-[#B89080]">Type a product name or SKU</p>
           </div>
         )}
 

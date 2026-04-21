@@ -147,8 +147,8 @@ export function SalesImportModal({ open, onClose, onImport, products }: SalesImp
                     id="sales-file-input"
                   />
                   <label htmlFor="sales-file-input">
-                    <Button size="sm" className="bg-[#E8896A] hover:bg-[#C1614A] text-white" asChild>
-                      <span>Choose File</span>
+                    <Button size="sm" className="bg-[#E8896A] hover:bg-[#C1614A] text-white cursor-pointer">
+                      Choose File
                     </Button>
                   </label>
                 </div>

@@ -142,7 +142,7 @@ export function DateRangeFilter() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-[#F2C4B0] rounded-xl shadow-lg p-4 w-[320px] max-w-[calc(100vw-2rem)]">
+        <div className="absolute left-0 sm:right-0 top-full mt-1 z-50 bg-white border border-[#F2C4B0] rounded-xl shadow-lg p-4 w-[320px] max-w-[calc(100vw-2rem)]">
 
           {/* Presets */}
           <div className="flex flex-wrap gap-1.5 mb-3">

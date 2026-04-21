@@ -17,8 +17,16 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function SalesChart({ data }: { data: SalesChartData[] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <p className="text-xs text-[#B89080]">No sales data available</p>
+      </div>
+    )
+  }
+
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#F2C4B0" vertical={false} />
         <XAxis

@@ -10,7 +10,7 @@ import {
   type RowSelectionState,
 } from '@tanstack/react-table'
 import { useState } from 'react'
-import { Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Package, Tag } from 'lucide-react'
+import { Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Package, Tag, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StockBadge } from '@/components/shared/StockBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
@@ -20,6 +20,12 @@ import { FilterSelect } from '@/components/shared/FilterSelect'
 import { formatCurrency } from '@/lib/utils'
 import { getStockStatus } from '@/types'
 import { HighlightText } from '@/components/shared/HighlightText'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { Product } from '@/types'
 import type { Category } from '@/types'
 
@@ -159,18 +165,48 @@ export function ProductsTable({
       header: () => null,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-          <Button size="sm" variant="ghost"
-            className="h-8 px-2.5 text-[#7A3E2E] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors"
-            onClick={() => onEdit(row.original)}>
-            <Pencil className="w-3.5 h-3.5 mr-1" />
-            <span className="text-xs">Edit</span>
-          </Button>
-          <Button size="sm" variant="ghost"
-            className="h-8 px-2.5 text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
-            onClick={() => setDeleteTarget(row.original)}>
-            <Trash2 className="w-3.5 h-3.5 mr-1" />
-            <span className="text-xs">Delete</span>
-          </Button>
+          {/* Desktop: Show Edit and Delete buttons */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <Button size="sm" variant="ghost"
+              className="h-8 px-2.5 text-[#7A3E2E] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors"
+              onClick={() => onEdit(row.original)}>
+              <Pencil className="w-3.5 h-3.5 mr-1" />
+              <span className="text-xs">Edit</span>
+            </Button>
+            <Button size="sm" variant="ghost"
+              className="h-8 px-2.5 text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+              onClick={() => setDeleteTarget(row.original)}>
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span className="text-xs">Delete</span>
+            </Button>
+          </div>
+          
+          {/* Mobile/Tablet: Show 3-dot menu */}
+          <div className="lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-8 w-8 p-0 rounded-md text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors flex items-center justify-center border border-[#F2C4B0] bg-white shadow-sm cursor-pointer"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="border-[#F2C4B0] bg-white shadow-lg">
+                <DropdownMenuItem
+                  onClick={() => onEdit(row.original)}
+                  className="text-[#7A3E2E] hover:bg-[#FDE8DF] focus:bg-[#FDE8DF]"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeleteTarget(row.original)}
+                  className="text-[#C05050] hover:bg-[#FDECEA] focus:bg-[#FDECEA]"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       ),
     },

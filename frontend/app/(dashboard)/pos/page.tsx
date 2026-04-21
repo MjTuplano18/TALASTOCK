@@ -296,8 +296,8 @@ export default function POSPage() {
   // If showing receipt, display receipt view
   if (completedSale) {
     return (
-      <div>
-        <div className="mb-4">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h1 className="text-lg font-medium text-[#7A3E2E]">Point of Sale</h1>
         </div>
         <ReceiptView sale={completedSale} onNewSale={startNewSale} />
@@ -306,14 +306,14 @@ export default function POSPage() {
   }
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Point of Sale</h1>
       </div>
 
       {/* Offline Banner */}
       {isOffline && (
-        <div className="mb-4 p-3 rounded-lg bg-[#FDECEA] border border-[#F2C4B0]">
+        <div className="p-3 rounded-lg bg-[#FDECEA] border border-[#F2C4B0]">
           <p className="text-sm text-[#C05050] font-medium">
             You are offline. Complete sale is disabled.
           </p>
@@ -321,9 +321,9 @@ export default function POSPage() {
       )}
 
       {/* Split Layout: Search Left, Cart Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Product Search */}
-        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 h-[calc(100vh-200px)] lg:h-[600px]">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 h-[calc(100vh-240px)] xl:h-[600px]">
           <ProductSearch
             onProductSelect={addToCart}
             disabled={isProcessing}
@@ -331,7 +331,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart */}
-        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 h-[calc(100vh-200px)] lg:h-[600px]">
+        <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 h-[calc(100vh-240px)] xl:h-[600px]">
           <POSCart
             items={cart}
             onUpdateQuantity={updateQuantity}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Sparkles, RefreshCw, Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { aiPost } from '@/lib/ai-fetch'
-import { getAICached, setAICached, AI_TTL } from '@/lib/ai-cache'
+import { getAICached, setAICached, clearAICacheKey, AI_TTL } from '@/lib/ai-cache'
 import type { DashboardMetrics, TopProductData, Sale, SalesChartData, InventoryItem } from '@/types'
 
 interface AiReportSummaryProps {
@@ -83,6 +83,44 @@ export function AiReportSummary({
     }
   }
 
+  async function regenerate() {
+    // Clear cache and force regeneration
+    clearAICacheKey(cacheKey)
+    setSummary(null)
+    
+    // Force a fresh API call by skipping cache check
+    setFetching(true)
+    try {
+      console.log('Regenerating AI summary with topProducts:', topProducts)
+      
+      const res = await aiPost({
+        type: 'report_summary',
+        metrics,
+        topProducts,
+        recentSales,
+        salesChart,
+        inventory: inventory.slice(0, 20).map(i => ({
+          product: i.products?.name,
+          quantity: i.quantity,
+          threshold: i.low_stock_threshold,
+        })),
+        period,
+        forceRefresh: true, // Add flag to bypass server cache
+      })
+      const data = await res.json()
+      if (data.error === 'AI not configured') { setConfigured(false); return }
+      if (data.summary) {
+        setAICached(cacheKey, data.summary, AI_TTL.REPORT)
+        setSummary(data.summary)
+        onSummaryGenerated?.(data.summary)
+      }
+    } catch (err) {
+      console.error('Failed to regenerate AI summary:', err)
+    } finally {
+      setFetching(false)
+    }
+  }
+
   async function copy() {
     if (!summary) return
     await navigator.clipboard.writeText(summary)
@@ -112,7 +150,7 @@ export function AiReportSummary({
               {copied ? 'Copied' : 'Copy'}
             </button>
           )}
-          <button onClick={generate} disabled={fetching || loading}
+          <button onClick={regenerate} disabled={fetching || loading}
             className="text-[#B89080] hover:text-[#7A3E2E] transition-colors disabled:opacity-40"
             title="Regenerate summary">
             <RefreshCw className={cn('w-4 h-4', fetching && 'animate-spin')} />

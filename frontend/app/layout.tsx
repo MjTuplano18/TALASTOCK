@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { QueryProvider } from '@/components/providers/QueryProvider'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -19,21 +20,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={plusJakartaSans.variable}>
       <body className={`antialiased ${plusJakartaSans.className}`}>
-        {children}
-        <Toaster 
-          richColors 
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#FFFFFF',
-              border: '1px solid #F2C4B0',
-              color: '#7A3E2E',
-            },
-            className: 'toast-custom',
-          }}
-          closeButton
-          duration={3000}
-        />
+        <QueryProvider>
+          {children}
+          <Toaster 
+            richColors 
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: '#FFFFFF',
+                border: '1px solid #F2C4B0',
+                color: '#7A3E2E',
+              },
+              className: 'toast-custom',
+            }}
+            closeButton={false}
+            duration={3000}
+          />
+        </QueryProvider>
       </body>
     </html>
   )

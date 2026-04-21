@@ -382,12 +382,12 @@ export default function SalesPage() {
   }
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Sales</h1>
       </div>
 
-      {error && <div className="text-sm text-[#C05050] mb-3">{error}</div>}
+      {error && <div className="text-sm text-[#C05050]">{error}</div>}
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search product or notes…" />
@@ -463,87 +463,210 @@ export default function SalesPage() {
           />
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#F2C4B0]">
-                  <th className="w-8 py-3 px-4" />
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Date & Time</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Products</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Status</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Payment Method</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Discount</th>
-                  <th className="text-left py-3 px-4 text-[#B89080] font-medium">Total Amount</th>
-                  <th className="py-3 px-4" />
-                </tr>
-              </thead>
-              <tbody>
-                {paginated.map(sale => {
-                  const isExpanded = expandedId === sale.id
-                  const itemCount = sale.sale_items?.length ?? 0
-                  const firstProduct = sale.sale_items?.[0]?.products?.name
-                  const productSummary = firstProduct
-                    ? itemCount > 1 ? `${firstProduct} +${itemCount - 1} more` : firstProduct
-                    : `${itemCount} item${itemCount !== 1 ? 's' : ''}`
+            {/* Desktop table view */}
+            <div className="hidden lg:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#F2C4B0]">
+                    <th className="w-8 py-3 px-4" />
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Date & Time</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Products</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Status</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Payment Method</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Discount</th>
+                    <th className="text-left py-3 px-4 text-[#B89080] font-medium">Total Amount</th>
+                    <th className="py-3 px-4" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map(sale => {
+                    const isExpanded = expandedId === sale.id
+                    const itemCount = sale.sale_items?.length ?? 0
+                    const firstProduct = sale.sale_items?.[0]?.products?.name
+                    const productSummary = firstProduct
+                      ? itemCount > 1 ? `${firstProduct} +${itemCount - 1} more` : firstProduct
+                      : `${itemCount} item${itemCount !== 1 ? 's' : ''}`
 
-                  return (
-                    <React.Fragment key={sale.id}>
-                      <tr
-                        className={`border-b border-[#FDE8DF] hover:bg-[#FDF6F0] cursor-pointer ${isExpanded ? 'bg-[#FDF6F0]' : ''}`}
-                        onClick={() => toggleExpand(sale.id)}>
-                        <td className="py-3 px-4 text-[#B89080]">
-                          {isExpanded
-                            ? <ChevronUp className="w-3.5 h-3.5" />
-                            : <ChevronDown className="w-3.5 h-3.5" />}
-                        </td>
-                        <td className="py-3 px-4 text-[#B89080] text-xs">{formatDateTime(sale.created_at)}</td>
-                        <td className="py-3 px-4 text-[#7A3E2E]">{productSummary}</td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={sale.status || 'completed'} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <PaymentMethodBadge method={sale.payment_method || 'cash'} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <DiscountBadge type={sale.discount_type || 'none'} amount={sale.discount_amount || 0} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-[#7A3E2E]">{formatCurrency(sale.total_amount)}</span>
-                            {sale.refunded_amount > 0 && (
-                              <span className="text-xs text-[#C05050]">
-                                Refunded: {formatCurrency(sale.refunded_amount)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center gap-1">
-                            {/* Refund button - only show for completed or partially refunded sales */}
-                            {sale.status !== 'refunded' && (
+                    return (
+                      <React.Fragment key={sale.id}>
+                        <tr
+                          className={`border-b border-[#FDE8DF] hover:bg-[#FDF6F0] cursor-pointer ${isExpanded ? 'bg-[#FDF6F0]' : ''}`}
+                          onClick={() => toggleExpand(sale.id)}>
+                          <td className="py-3 px-4 text-[#B89080]">
+                            {isExpanded
+                              ? <ChevronUp className="w-3.5 h-3.5" />
+                              : <ChevronDown className="w-3.5 h-3.5" />}
+                          </td>
+                          <td className="py-3 px-4 text-[#B89080] text-xs">{formatDateTime(sale.created_at)}</td>
+                          <td className="py-3 px-4 text-[#7A3E2E]">{productSummary}</td>
+                          <td className="py-3 px-4">
+                            <StatusBadge status={sale.status || 'completed'} />
+                          </td>
+                          <td className="py-3 px-4">
+                            <PaymentMethodBadge method={sale.payment_method || 'cash'} />
+                          </td>
+                          <td className="py-3 px-4">
+                            <DiscountBadge type={sale.discount_type || 'none'} amount={sale.discount_amount || 0} />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium text-[#7A3E2E]">{formatCurrency(sale.total_amount)}</span>
+                              {sale.refunded_amount > 0 && (
+                                <span className="text-xs text-[#C05050]">
+                                  Refunded: {formatCurrency(sale.refunded_amount)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1">
+                              {/* Refund button - only show for completed or partially refunded sales */}
+                              {sale.status !== 'refunded' && (
+                                <button
+                                  onClick={() => openRefundModal(sale)}
+                                  disabled={refunding}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="Process refund">
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {/* Void button */}
                               <button
-                                onClick={() => openRefundModal(sale)}
-                                disabled={refunding}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Process refund">
-                                <RotateCcw className="w-3.5 h-3.5" />
+                                onClick={() => setVoidTarget(sale)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+                                title="Void this sale">
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                            )}
-                            {/* Void button */}
-                            <button
-                              onClick={() => setVoidTarget(sale)}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
-                              title="Void this sale">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && <SaleExpandedRow sale={sale} />}
+                      </React.Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card view */}
+            <div className="lg:hidden space-y-3 p-4">
+              {paginated.map(sale => {
+                const isExpanded = expandedId === sale.id
+                const itemCount = sale.sale_items?.length ?? 0
+                const firstProduct = sale.sale_items?.[0]?.products?.name
+                const productSummary = firstProduct
+                  ? itemCount > 1 ? `${firstProduct} +${itemCount - 1} more` : firstProduct
+                  : `${itemCount} item${itemCount !== 1 ? 's' : ''}`
+
+                return (
+                  <div key={sale.id} className="border border-[#F2C4B0] rounded-lg bg-white">
+                    <div 
+                      className="p-3 cursor-pointer"
+                      onClick={() => toggleExpand(sale.id)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-[#7A3E2E] text-sm truncate">{productSummary}</h3>
+                            {isExpanded
+                              ? <ChevronUp className="w-4 h-4 text-[#B89080] shrink-0" />
+                              : <ChevronDown className="w-4 h-4 text-[#B89080] shrink-0" />}
                           </div>
-                        </td>
-                      </tr>
-                      {isExpanded && <SaleExpandedRow sale={sale} />}
-                    </React.Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
+                          <p className="text-xs text-[#B89080]">{formatDateTime(sale.created_at)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-[#7A3E2E] text-sm">{formatCurrency(sale.total_amount)}</p>
+                          {sale.refunded_amount > 0 && (
+                            <p className="text-xs text-[#C05050]">
+                              Refunded: {formatCurrency(sale.refunded_amount)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={sale.status || 'completed'} />
+                          <PaymentMethodBadge method={sale.payment_method || 'cash'} />
+                        </div>
+                        
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          {sale.status !== 'refunded' && (
+                            <button
+                              onClick={() => openRefundModal(sale)}
+                              disabled={refunding}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50"
+                              title="Process refund">
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setVoidTarget(sale)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+                            title="Void this sale">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {isExpanded && (
+                      <div className="border-t border-[#F2C4B0] p-3 bg-[#FDF6F0]">
+                        <p className="text-xs font-medium text-[#7A3E2E] mb-2">Items in this sale</p>
+                        <div className="space-y-2">
+                          {sale.sale_items?.map(item => (
+                            <div key={item.id} className="flex justify-between text-xs">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[#7A3E2E] truncate">{item.products?.name ?? '—'}</p>
+                                <p className="text-[#B89080] font-mono">{item.products?.sku ?? '—'}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[#7A3E2E]">{item.quantity} × {formatCurrency(item.unit_price)}</p>
+                                <p className="text-[#7A3E2E] font-medium">{formatCurrency(item.subtotal)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Discount and payment info */}
+                        {sale.discount_type && sale.discount_type !== 'none' && sale.discount_amount > 0 && (
+                          <div className="mt-2 pt-2 border-t border-[#F2C4B0] text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-[#B89080]">
+                                Discount ({sale.discount_type === 'senior_pwd' ? 'Senior/PWD 20%' : 
+                                          sale.discount_type === 'percentage' ? `${sale.discount_value}%` : 
+                                          'Fixed Amount'}):
+                              </span>
+                              <span className="text-[#C05050] font-medium">-{formatCurrency(sale.discount_amount)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {sale.payment_method === 'cash' && sale.cash_received && (
+                          <div className="mt-2 pt-2 border-t border-[#F2C4B0] text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-[#B89080]">Cash Received:</span>
+                              <span className="text-[#7A3E2E] font-medium">{formatCurrency(sale.cash_received)}</span>
+                            </div>
+                            {sale.change_given !== undefined && sale.change_given > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-[#B89080]">Change Given:</span>
+                                <span className="text-[#7A3E2E] font-medium">{formatCurrency(sale.change_given)}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {sale.notes && (
+                          <p className="text-xs text-[#B89080] mt-2">Note: {sale.notes}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            
             <Pagination page={page} totalPages={totalPages} totalItems={filtered.length}
               pageSize={PAGE_SIZE} onPageChange={setPage} />
           </>

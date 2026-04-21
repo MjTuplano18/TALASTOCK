@@ -35,8 +35,8 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Categories</h1>
       </div>
 

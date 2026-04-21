@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar />
         <main 
           id="main-content"
-          className="flex-1 overflow-auto p-3 sm:p-4 md:p-6 pt-16 md:pt-6"
+          className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 pt-16 md:pt-6"
           role="main"
         >
           <PageErrorBoundary>

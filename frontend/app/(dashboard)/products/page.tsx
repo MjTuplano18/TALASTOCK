@@ -121,12 +121,12 @@ export default function ProductsPage() {
   }
 
   return (
-    <div>
-      <div className="mb-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <h1 className="text-lg font-medium text-[#7A3E2E]">Products</h1>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search name or SKU…" />
         <FilterSelect value={categoryFilter} onChange={setCategoryFilter} placeholder="All Categories"
           options={categories.map(c => ({ label: c.name, value: c.id }))} />
@@ -136,10 +136,10 @@ export default function ProductsPage() {
             { label: 'Low Stock', value: 'low_stock' },
             { label: 'Out of Stock', value: 'out_of_stock' },
           ]} />
-        <div className="hidden sm:block">
+        <div className="hidden xl:block">
           <RangeInput value={priceRange} onChange={setPriceRange} label="Price Range" prefix="₱" placeholder="Price" />
         </div>
-        <div className="hidden sm:block">
+        <div className="hidden xl:block">
           <RangeInput value={stockRange} onChange={setStockRange} label="Stock Range" placeholder="Stock qty" />
         </div>
         {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>}
@@ -156,7 +156,7 @@ export default function ProductsPage() {
           <button onClick={() => { setEditTarget(null); setFormOpen(true) }}
             className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
             <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Add Product</span>
+            Add Product
           </button>
         </div>
       </div>

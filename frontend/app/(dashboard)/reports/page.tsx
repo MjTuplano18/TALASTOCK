@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Download, Package, TrendingUp, DollarSign } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
@@ -44,16 +44,16 @@ function ReportCard({ title, description, icon, summaryMetrics, filters, onExpor
   return (
     <div className="bg-white rounded-xl border border-[#F2C4B0]">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#F2C4B0]">
-        <div className="w-9 h-9 rounded-xl bg-[#FDE8DF] flex items-center justify-center shrink-0">{icon}</div>
+      <div className="flex items-start gap-3 px-4 sm:px-5 py-4 border-b border-[#F2C4B0]">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#FDE8DF] flex items-center justify-center shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-[#7A3E2E]">{title}</h3>
-          <p className="text-xs text-[#B89080]">{description}</p>
+          <p className="text-xs text-[#B89080] leading-relaxed">{description}</p>
         </div>
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4 flex flex-col gap-3">
+      <div className="px-4 sm:px-5 py-4 flex flex-col gap-3">
         {/* Filters */}
         {filters}
 
@@ -61,7 +61,7 @@ function ReportCard({ title, description, icon, summaryMetrics, filters, onExpor
         {summaryMetrics}
 
         {/* Export Buttons */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex flex-col sm:flex-row gap-2 pt-1">
           <button
             onClick={onExportPDF}
             disabled={exporting}
@@ -95,6 +95,11 @@ export default function ReportsPage() {
   const [exportingSales, setExportingSales] = useState(false)
   const [exportingInventory, setExportingInventory] = useState(false)
   const [exportingProfitLoss, setExportingProfitLoss] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Profit & Loss date range
   const [plDateRange, setPlDateRange] = useState<DateRange>({ from: null, to: null })
@@ -161,6 +166,54 @@ export default function ReportsPage() {
   const inventoryValue = filteredInventory.reduce((s, i) => s + i.quantity * (i.products?.cost_price ?? 0), 0)
   const lowStockCount = filteredInventory.filter(i => getStockStatus(i.quantity, i.low_stock_threshold) !== 'in_stock').length
   const hasInvFilters = invStatusFilter || invCategoryFilter
+
+  // Calculate top products from sales
+  const topProducts = useMemo(() => {
+    const productSales = new Map<string, { name: string; quantity: number; revenue: number; image_url?: string | null }>()
+    
+    filteredSales.forEach(sale => {
+      sale.sale_items?.forEach(item => {
+        const product = allProducts.find(p => p.id === item.product_id)
+        if (product) {
+          const existing = productSales.get(item.product_id) || { 
+            name: product.name, 
+            quantity: 0, 
+            revenue: 0,
+            image_url: product.image_url 
+          }
+          existing.quantity += item.quantity
+          existing.revenue += item.subtotal
+          productSales.set(item.product_id, existing)
+        }
+      })
+    })
+
+    return Array.from(productSales.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10)
+      .map(p => ({
+        product: p.name,
+        sales: p.quantity,
+        revenue: p.revenue,
+        image_url: p.image_url
+      }))
+  }, [filteredSales, allProducts])
+
+  // Prevent hydration mismatch by not rendering dynamic content until mounted
+  if (!mounted) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h1 className="text-lg font-medium text-[#7A3E2E]">Reports</h1>
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-xl border border-[#F2C4B0] h-64 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   async function handleSalesExport() {
     setExportingSales(true)
@@ -237,11 +290,13 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-medium text-[#7A3E2E]">Reports</h1>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-lg font-medium text-[#7A3E2E]">Reports</h1>
+      </div>
 
       {/* ── Report cards ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Sales Report */}
         <ReportCard
@@ -381,7 +436,7 @@ export default function ReportsPage() {
           low_stock_count: lowStockCount,
           total_sales_count: filteredSales.length,
         }}
-        topProducts={[]}
+        topProducts={topProducts}
         recentSales={filteredSales.slice(0, 10)}
         salesChart={[]}
         inventory={filteredInventory}

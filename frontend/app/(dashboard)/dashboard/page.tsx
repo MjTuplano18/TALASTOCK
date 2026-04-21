@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, Sparkles, Percent, BarChart2 } from 'lucide-react'
-import { useDashboardMetrics, type DateRange } from '@/hooks/useDashboardMetrics'
+import { useDashboardQuery, type DateRange } from '@/hooks/useDashboardQuery'
 import { useProducts } from '@/hooks/useProducts'
 import { useSales } from '@/hooks/useSales'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
-import { MetricCard } from '@/components/shared/MetricCard'
+import { HydrationSafeMetricCard } from '@/components/shared/HydrationSafeMetricCard'
 import { MetricCardSkeleton } from '@/components/shared/LoadingSkeleton'
 import { ChartCard } from '@/components/charts/ChartCard'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
@@ -50,12 +50,12 @@ export default function DashboardPage() {
   const router = useRouter()
   const [saleFormOpen, setSaleFormOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [dateRange, setDateRange] = useState<DateRange>('7d')
 
   const {
     metrics, salesChartData, topProductsData, revenueChartData,
-    recentSales, categoryPerformance, deadStock, loading, lastUpdated,
-    dateRange, setDateRange, refresh,
-  } = useDashboardMetrics()
+    recentSales, categoryPerformance, deadStock, loading, error, refresh,
+  } = useDashboardQuery(dateRange)
 
   const { allProducts } = useProducts()
   const { createSale, allSales } = useSales()
@@ -72,45 +72,61 @@ export default function DashboardPage() {
 
   const revenueChange = calcChange(metrics.total_sales_revenue, metrics.last_month_revenue)
 
+  // Memoize chart components to prevent unnecessary re-renders
+  const salesChart = useMemo(() => (
+    loading ? <ChartSkeleton /> : <SalesChart data={salesChartData} />
+  ), [loading, salesChartData])
+
+  const topProductsChart = useMemo(() => (
+    loading ? <ChartSkeleton /> : <TopProductsChart data={topProductsData} />
+  ), [loading, topProductsData])
+
+  const categoryChart = useMemo(() => (
+    loading ? <ChartSkeleton /> : <CategoryPerformanceChart data={categoryPerformance} />
+  ), [loading, categoryPerformance])
+
+  const paymentChart = useMemo(() => (
+    loading ? <ChartSkeleton /> : <PaymentMethodsChart data={allSales || []} />
+  ), [loading, allSales])
+
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
-          {lastUpdated && (
-            <span className="text-xs text-[#B89080] hidden lg:inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#E8896A] animate-pulse"></span>
-              Updated {timeAgo(lastUpdated)}
-            </span>
-          )}
-        </div>
-        
-        {/* Action Buttons Row */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <DateRangeFilter />
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-medium text-[#7A3E2E]">Dashboard</h1>
+          </div>
           
-          <button onClick={() => router.push('/pos')}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs font-medium transition-colors whitespace-nowrap">
-            <ShoppingCart className="w-3.5 h-3.5" />
-            Quick POS
-          </button>
-          <button onClick={handleExport} disabled={exporting || loading}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export PDF</span>
-          </button>
-          <button onClick={refresh} disabled={loading}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
-            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-          <button onClick={() => setSaleFormOpen(true)}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
-            <ShoppingCart className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Record Sale</span>
-          </button>
+          {/* Action Buttons Row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <DateRangeFilter />
+            
+            <button onClick={() => router.push('/pos')}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs font-medium transition-colors whitespace-nowrap">
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Quick POS</span>
+              <span className="sm:hidden">POS</span>
+            </button>
+            <button onClick={handleExport} disabled={exporting || loading}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Export PDF</span>
+              <span className="lg:hidden">Export</span>
+            </button>
+            <button onClick={refresh} disabled={loading}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
+              <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+              <span className="hidden lg:inline">Refresh</span>
+            </button>
+            <button onClick={() => setSaleFormOpen(true)}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Record Sale</span>
+              <span className="lg:hidden">Sale</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -130,25 +146,25 @@ export default function DashboardPage() {
       )}
 
       {/* Row 1 — 6 Core KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
         {loading ? (
           <>{[...Array(6)].map((_, i) => <MetricCardSkeleton key={i} />)}</>
         ) : (
           <>
-            <MetricCard label="Total Products" value={metrics.total_products}
+            <HydrationSafeMetricCard label="Total Products" value={metrics.total_products}
               icon={<Package className="w-4 h-4 text-[#E8896A]" />} />
-            <MetricCard label="Inventory Value" value={formatCurrency(metrics.total_inventory_value)}
+            <HydrationSafeMetricCard label="Inventory Value" value={formatCurrency(metrics.total_inventory_value)}
               icon={<DollarSign className="w-4 h-4 text-[#E8896A]" />} />
-            <MetricCard label="Sales This Month" value={formatCurrency(metrics.total_sales_revenue)}
+            <HydrationSafeMetricCard label="Sales This Month" value={formatCurrency(metrics.total_sales_revenue)}
               icon={<TrendingUp className="w-4 h-4 text-[#E8896A]" />}
               change={revenueChange} />
-            <MetricCard label="Low Stock Items" value={metrics.low_stock_count}
+            <HydrationSafeMetricCard label="Low Stock Items" value={metrics.low_stock_count}
               icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
               danger={metrics.low_stock_count > 0} />
-            <MetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
+            <HydrationSafeMetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
               icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
               sub={`${metrics.total_sales_revenue > 0 ? ((metrics.gross_profit ?? 0) / metrics.total_sales_revenue * 100).toFixed(1) : '0'}% margin`} />
-            <MetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
+            <HydrationSafeMetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
               icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
               sub={`${metrics.total_sales_count ?? 0} orders`} />
           </>
@@ -157,11 +173,11 @@ export default function DashboardPage() {
 
       {/* Row 2 — Sales Trend (Hero Chart) */}
       <ChartCard title="Sales Trend">
-        {loading ? <ChartSkeleton /> : <SalesChart data={salesChartData} />}
+        {salesChart}
       </ChartCard>
 
       {/* Row 3 — Revenue Goal + Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
         <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[280px]">
           <h3 className="text-sm font-medium text-[#7A3E2E] mb-3">Monthly Revenue Goal</h3>
           <div className="flex-1 flex items-center justify-center">
@@ -169,20 +185,20 @@ export default function DashboardPage() {
           </div>
         </div>
         <ChartCard title="Top Products by Revenue">
-          {loading ? <ChartSkeleton /> : <TopProductsChart data={topProductsData} />}
+          {topProductsChart}
         </ChartCard>
       </div>
 
       {/* Row 4 — Payment Methods + Category Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
         <div className="bg-white rounded-xl border border-[#F2C4B0] p-4 flex flex-col min-h-[280px]">
           <h3 className="text-sm font-medium text-[#7A3E2E] mb-3">Payment Methods</h3>
           <div className="flex-1 flex items-center justify-center">
-            {loading ? <ChartSkeleton /> : <PaymentMethodsChart data={allSales || []} />}
+            {paymentChart}
           </div>
         </div>
         <ChartCard title="Sales by Category">
-          {loading ? <ChartSkeleton /> : <CategoryPerformanceChart data={categoryPerformance} />}
+          {categoryChart}
         </ChartCard>
       </div>
 
@@ -198,7 +214,7 @@ export default function DashboardPage() {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <AiInsightCard
             metrics={metrics}
             topProducts={topProductsData}

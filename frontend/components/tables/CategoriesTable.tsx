@@ -1,12 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { CategoryForm } from '@/components/forms/CategoryForm'
 import { HighlightText } from '@/components/shared/HighlightText'
 import { RelativeTime } from '@/components/shared/RelativeTime'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { Category } from '@/types'
 
 interface CategoriesTableProps {
@@ -65,7 +71,8 @@ export function CategoriesTable({ categories, searchQuery = '', onUpdate, onDele
                 <RelativeTime date={category.created_at} />
               </td>
               <td className="py-3 px-4">
-                <div className="flex items-center justify-end gap-1.5">
+                {/* Desktop: Show Edit and Delete buttons */}
+                <div className="hidden lg:flex items-center justify-end gap-1.5">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -84,6 +91,33 @@ export function CategoriesTable({ categories, searchQuery = '', onUpdate, onDele
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                     <span className="text-xs">Delete</span>
                   </Button>
+                </div>
+                
+                {/* Mobile/Tablet: Show 3-dot menu */}
+                <div className="lg:hidden flex items-center justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className="h-8 w-8 p-0 rounded-md text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors flex items-center justify-center border-0 bg-transparent cursor-pointer"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="border-[#F2C4B0] bg-white shadow-lg">
+                      <DropdownMenuItem
+                        onClick={() => setEditTarget(category)}
+                        className="text-[#7A3E2E] hover:bg-[#FDE8DF] focus:bg-[#FDE8DF]"
+                      >
+                        <Pencil className="w-3.5 h-3.5 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setDeleteTarget(category)}
+                        className="text-[#C05050] hover:bg-[#FDECEA] focus:bg-[#FDECEA]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </td>
             </tr>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/retry'
-import { getCached, setCached } from '@/lib/cache'
+import { getCached, setCached, CACHE_TTL } from '@/lib/cache'
 import { useDateRangeQuery } from '@/context/DateRangeContext'
 import {
   getDashboardMetrics,
@@ -40,40 +40,35 @@ export function useDashboardMetrics() {
   // Get date range from context
   const { startDate, endDate } = useDateRangeQuery()
   
-  // Use ref to store latest date values without causing re-renders
+  // All refs must be declared first and consistently
   const dateRangeRef = useRef({ startDate, endDate })
-  dateRangeRef.current = { startDate, endDate }
+  const lastRefreshRef = useRef<number>(0)
+  const REFRESH_COOLDOWN = 2000 // 2 seconds cooldown between refreshes
   
-  // Initialize from cache if available
-  const [metrics, setMetrics] = useState<DashboardMetrics>(() => 
-    getCached<DashboardMetrics>(CACHE_KEYS.metrics) ?? DEFAULT_METRICS
-  )
-  const [salesChartData, setSalesChartData] = useState<SalesChartData[]>(() =>
-    getCached<SalesChartData[]>(CACHE_KEYS.salesChart('7d')) ?? []
-  )
-  const [topProductsData, setTopProductsData] = useState<TopProductData[]>(() =>
-    getCached<TopProductData[]>(CACHE_KEYS.topProducts) ?? []
-  )
-  const [revenueChartData, setRevenueChartData] = useState<RevenueChartData[]>(() =>
-    getCached<RevenueChartData[]>(CACHE_KEYS.revenueChart) ?? []
-  )
-  const [recentSales, setRecentSales] = useState<Sale[]>(() =>
-    getCached<Sale[]>(CACHE_KEYS.recentSales) ?? []
-  )
-  const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>(() =>
-    getCached<CategoryPerformance[]>(CACHE_KEYS.categoryPerf) ?? []
-  )
-  const [deadStock, setDeadStock] = useState<DeadStockItem[]>(() =>
-    getCached<DeadStockItem[]>(CACHE_KEYS.deadStock) ?? []
-  )
-  
-  const [loading, setLoading] = useState(false) // Start with false, let the effect handle it
+  // All state must be declared consistently with hydration-safe initialization
+  const [metrics, setMetrics] = useState<DashboardMetrics>(DEFAULT_METRICS)
+  const [salesChartData, setSalesChartData] = useState<SalesChartData[]>([])
+  const [topProductsData, setTopProductsData] = useState<TopProductData[]>([])
+  const [revenueChartData, setRevenueChartData] = useState<RevenueChartData[]>([])
+  const [recentSales, setRecentSales] = useState<Sale[]>([])
+  const [categoryPerformance, setCategoryPerformance] = useState<CategoryPerformance[]>([])
+  const [deadStock, setDeadStock] = useState<DeadStockItem[]>([])
+  const [loading, setLoading] = useState(true) // Start with loading true
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
   const [isInitialized, setIsInitialized] = useState(false)
+  
+  // Update ref after state declarations
+  dateRangeRef.current = { startDate, endDate }
 
   const fetchAll = useCallback(async (range: DateRange = dateRange, force = false) => {
+    // Prevent rapid successive refreshes
+    const now = Date.now()
+    if (!force && (now - lastRefreshRef.current) < REFRESH_COOLDOWN) {
+      return
+    }
+    
     // Get latest date values from ref
     const { startDate: currentStartDate, endDate: currentEndDate } = dateRangeRef.current
     
@@ -88,6 +83,7 @@ export function useDashboardMetrics() {
       }
     }
     
+    lastRefreshRef.current = now
     setLoading(true)
     setError(null)
     try {
@@ -112,14 +108,14 @@ export function useDashboardMetrics() {
       setDeadStock(dead)
       setLastUpdated(new Date())
       
-      // Cache the results
-      setCached(CACHE_KEYS.metrics, m)
-      setCached(CACHE_KEYS.salesChart(range), sales)
-      setCached(CACHE_KEYS.topProducts, top)
-      setCached(CACHE_KEYS.revenueChart, revenue)
-      setCached(CACHE_KEYS.recentSales, recent)
-      setCached(CACHE_KEYS.categoryPerf, catPerf)
-      setCached(CACHE_KEYS.deadStock, dead)
+      // Cache the results with longer TTL for dashboard data
+      setCached(CACHE_KEYS.metrics, m, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.salesChart(range), sales, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.topProducts, top, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.revenueChart, revenue, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.recentSales, recent, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.categoryPerf, catPerf, CACHE_TTL.DASHBOARD)
+      setCached(CACHE_KEYS.deadStock, dead, CACHE_TTL.DASHBOARD)
       
       setIsInitialized(true)
     } catch (err) {
@@ -128,48 +124,30 @@ export function useDashboardMetrics() {
     } finally {
       setLoading(false)
     }
-  }, [dateRange, isInitialized]) // Only depend on dateRange, not startDate/endDate
+  }, [dateRange, isInitialized])
 
-  // Initial load and refetch when date range changes
+  // Simplified initialization - just fetch data once on mount
   useEffect(() => {
-    // Check if we have cached data
-    const cachedMetrics = getCached<DashboardMetrics>(CACHE_KEYS.metrics)
-    
-    if (cachedMetrics && !isInitialized) {
-      // We have cached data, use it immediately
-      setIsInitialized(true)
-      return
-    }
-    
     if (!isInitialized) {
-      // First load - fetch data
       fetchAll(dateRange, false)
-    } else {
-      // Date changed - force refetch
+    }
+  }, [fetchAll, dateRange, isInitialized])
+  
+  // Handle date changes after initialization
+  useEffect(() => {
+    if (isInitialized) {
       fetchAll(dateRange, true)
     }
-  }, [startDate, endDate, dateRange]) // Remove fetchAll and isInitialized from deps
+  }, [startDate, endDate, fetchAll, isInitialized])
 
-  // Realtime subscriptions with error handling
+  // Realtime subscriptions with error handling and visibility control - DISABLED to prevent excessive refreshes
   useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
-        fetchAll(dateRange, true).catch(err => console.error('Realtime refetch error:', err))
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => {
-        fetchAll(dateRange, true).catch(err => console.error('Realtime refetch error:', err))
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIPTION_ERROR') {
-          console.error('Realtime subscription error')
-        }
-      })
-
+    // Temporarily disable realtime subscriptions to prevent dashboard refreshes
+    // Users can manually refresh if needed
     return () => {
-      supabase.removeChannel(channel)
+      // Cleanup function (empty for now)
     }
-  }, [dateRange, fetchAll]) // fetchAll is now stable
+  }, [])
 
   const refresh = useCallback(() => fetchAll(dateRange, true), [fetchAll, dateRange])
 

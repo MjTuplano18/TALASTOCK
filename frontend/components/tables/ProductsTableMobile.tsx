@@ -80,17 +80,17 @@ export function ProductsTableMobile({
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         onClick={e => e.stopPropagation()}
-                        className="h-7 w-7 p-0 rounded-md text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors shrink-0 flex items-center justify-center border-0 bg-transparent cursor-pointer"
+                        className="h-8 w-8 p-0 rounded-md text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors shrink-0 flex items-center justify-center border border-[#F2C4B0] bg-white shadow-sm cursor-pointer"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="border-[#F2C4B0]">
+                      <DropdownMenuContent align="end" className="border-[#F2C4B0] bg-white shadow-lg">
                         <DropdownMenuItem
                           onClick={e => {
                             e.stopPropagation()
                             onEdit(product)
                           }}
-                          className="text-[#7A3E2E]"
+                          className="text-[#7A3E2E] hover:bg-[#FDE8DF] focus:bg-[#FDE8DF]"
                         >
                           <Pencil className="w-3.5 h-3.5 mr-2" />
                           Edit
@@ -100,7 +100,7 @@ export function ProductsTableMobile({
                             e.stopPropagation()
                             setDeleteTarget(product)
                           }}
-                          className="text-[#C05050]"
+                          className="text-[#C05050] hover:bg-[#FDECEA] focus:bg-[#FDECEA]"
                         >
                           <Trash2 className="w-3.5 h-3.5 mr-2" />
                           Delete
