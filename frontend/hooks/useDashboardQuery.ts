@@ -84,12 +84,48 @@ export function useDashboardQuery(dateRange: DateRange = '7d') {
   ] = queries
 
   // Determine overall loading state
-  const isLoading = queries.some(query => query.isLoading)
-  const isError = queries.some(query => query.isError)
-  const error = queries.find(query => query.error)?.error
+  const isAnyLoading = queries.some(query => query.isLoading)
+  const isAnyError = queries.some(query => query.isError)
 
   return {
-    // Data with fallbacks
+    // Individual query states with data, loading, and error
+    metricsState: {
+      data: metricsQuery.data ?? DEFAULT_METRICS,
+      isLoading: metricsQuery.isLoading,
+      isError: metricsQuery.isError,
+      error: metricsQuery.error,
+      refetch: metricsQuery.refetch,
+    },
+    salesChartState: {
+      data: salesChartQuery.data ?? [],
+      isLoading: salesChartQuery.isLoading,
+      isError: salesChartQuery.isError,
+      error: salesChartQuery.error,
+      refetch: salesChartQuery.refetch,
+    },
+    topProductsState: {
+      data: topProductsQuery.data ?? [],
+      isLoading: topProductsQuery.isLoading,
+      isError: topProductsQuery.isError,
+      error: topProductsQuery.error,
+      refetch: topProductsQuery.refetch,
+    },
+    categoryPerformanceState: {
+      data: categoryPerformanceQuery.data ?? [],
+      isLoading: categoryPerformanceQuery.isLoading,
+      isError: categoryPerformanceQuery.isError,
+      error: categoryPerformanceQuery.error,
+      refetch: categoryPerformanceQuery.refetch,
+    },
+    deadStockState: {
+      data: deadStockQuery.data ?? [],
+      isLoading: deadStockQuery.isLoading,
+      isError: deadStockQuery.isError,
+      error: deadStockQuery.error,
+      refetch: deadStockQuery.refetch,
+    },
+    
+    // Legacy compatibility (for backward compatibility with existing code)
     metrics: metricsQuery.data ?? DEFAULT_METRICS,
     salesChartData: salesChartQuery.data ?? [],
     topProductsData: topProductsQuery.data ?? [],
@@ -97,23 +133,14 @@ export function useDashboardQuery(dateRange: DateRange = '7d') {
     recentSales: recentSalesQuery.data ?? [],
     categoryPerformance: categoryPerformanceQuery.data ?? [],
     deadStock: deadStockQuery.data ?? [],
+    loading: isAnyLoading,
+    error: isAnyError ? 'Failed to load some dashboard data' : null,
     
-    // Loading states
-    loading: isLoading,
-    error: isError ? (error instanceof Error ? error.message : 'Failed to load dashboard data') : null,
+    // Global states
+    isAnyLoading,
+    isAnyError,
     
-    // Individual query states for fine-grained control
-    queries: {
-      metrics: metricsQuery,
-      salesChart: salesChartQuery,
-      topProducts: topProductsQuery,
-      revenueChart: revenueChartQuery,
-      recentSales: recentSalesQuery,
-      categoryPerformance: categoryPerformanceQuery,
-      deadStock: deadStockQuery,
-    },
-    
-    // Refresh function
+    // Refresh all
     refresh: () => {
       queries.forEach(query => query.refetch())
     },

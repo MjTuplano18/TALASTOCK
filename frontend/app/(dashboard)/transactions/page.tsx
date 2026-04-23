@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Eye, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
@@ -23,6 +23,12 @@ export default function TransactionsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Sale | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Filter sales by date range and search query
   const filteredSales = sales.filter(sale => {
@@ -83,20 +89,20 @@ export default function TransactionsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
           <p className="text-xs text-[#B89080] mb-1">Total Transactions</p>
-          <p className="text-2xl font-medium text-[#7A3E2E]">{totalTransactions}</p>
+          <p className="text-2xl font-medium text-[#7A3E2E]">{mounted ? totalTransactions : 0}</p>
         </div>
         <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
           <p className="text-xs text-[#B89080] mb-1">Total Revenue</p>
-          <p className="text-2xl font-medium text-[#7A3E2E]">{formatCurrency(totalRevenue)}</p>
+          <p className="text-2xl font-medium text-[#7A3E2E]">{mounted ? formatCurrency(totalRevenue) : formatCurrency(0)}</p>
         </div>
         <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
           <p className="text-xs text-[#B89080] mb-1">Avg Transaction Value</p>
-          <p className="text-2xl font-medium text-[#7A3E2E]">{formatCurrency(avgTransactionValue)}</p>
+          <p className="text-2xl font-medium text-[#7A3E2E]">{mounted ? formatCurrency(avgTransactionValue) : formatCurrency(0)}</p>
         </div>
       </div>
 
       {/* Filters and Actions */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+      <div className="flex flex-col sm:flex-row gap-2 sm:items-center mb-2">
         {/* Search */}
         <SearchInput 
           value={searchQuery}
@@ -113,13 +119,15 @@ export default function TransactionsPage() {
           <DateRangeFilter />
 
           {/* Export Dropdown */}
-          <ExportDropdown
-            onExportExcel={handleExportExcel}
-            onExportCSV={handleExportCSV}
-            disabled={filteredSales.length === 0}
-            itemCount={filteredSales.length}
-            isFiltered={!!searchQuery}
-          />
+          {mounted && (
+            <ExportDropdown
+              onExportExcel={handleExportExcel}
+              onExportCSV={handleExportCSV}
+              disabled={filteredSales.length === 0}
+              itemCount={filteredSales.length}
+              isFiltered={!!searchQuery}
+            />
+          )}
         </div>
       </div>
 

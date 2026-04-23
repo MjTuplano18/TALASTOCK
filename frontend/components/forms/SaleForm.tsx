@@ -120,6 +120,19 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
               const qty = Number(watchedItems[index]?.quantity) || 0
               const price = Number(watchedItems[index]?.unit_price) || 0
               const subtotal = qty * price
+              
+              // Get selected product and stock info
+              const selectedProduct = products.find(p => p.id === watchedItems[index]?.product_id)
+              const currentStock = selectedProduct?.inventory?.quantity ?? 0
+              const lowStockThreshold = selectedProduct?.inventory?.low_stock_threshold ?? 10
+              const stockAfterSale = currentStock - qty
+              
+              // Determine stock status
+              const isOutOfStock = currentStock === 0
+              const isLowStock = currentStock > 0 && currentStock <= lowStockThreshold
+              const willBeOutOfStock = stockAfterSale <= 0
+              const willBeLowStock = stockAfterSale > 0 && stockAfterSale <= lowStockThreshold
+              const isOverSelling = qty > currentStock
 
               return (
                 <div key={field.id} className="bg-[#FDF6F0] rounded-lg border border-[#F2C4B0] p-3">
@@ -152,6 +165,27 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
                         <p className="text-xs text-[#C05050] mt-1">
                           {errors.items[index]?.product_id?.message}
                         </p>
+                      )}
+                      
+                      {/* Real-time Stock Information */}
+                      {selectedProduct && (
+                        <div className="mt-2 text-xs">
+                          <span className="text-[#B89080]">Stock: </span>
+                          <span className={`font-medium ${
+                            isOutOfStock ? 'text-[#C05050]' : 
+                            isLowStock ? 'text-[#E8896A]' : 
+                            'text-[#7A3E2E]'
+                          }`}>
+                            {currentStock} {currentStock === 1 ? 'unit' : 'units'}
+                          </span>
+                          
+                          {/* Warning for overselling */}
+                          {isOverSelling && (
+                            <span className="ml-2 text-[#C05050] font-medium">
+                              ⚠️ Only {currentStock} available
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 

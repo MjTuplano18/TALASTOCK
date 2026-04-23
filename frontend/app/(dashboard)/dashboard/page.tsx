@@ -25,6 +25,7 @@ import { SaleForm } from '@/components/forms/SaleForm'
 import { exportDashboardPDF } from '@/lib/export-dashboard'
 import { formatCurrency, cn } from '@/lib/utils'
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
+import { ErrorState } from '@/components/shared/ErrorState'
 
 const DATE_RANGE_OPTIONS: { label: string; value: DateRange }[] = [
   { label: '7d', value: '7d' },
@@ -56,6 +57,8 @@ export default function DashboardPage() {
   const { startDate, endDate } = useDateRangeQuery()
 
   const {
+    metricsState, salesChartState, topProductsState, categoryPerformanceState,
+    // Legacy data for backward compatibility
     metrics, salesChartData, topProductsData, revenueChartData,
     recentSales, categoryPerformance, deadStock, loading, error, refresh,
   } = useDashboardQuery(dateRange)
@@ -88,18 +91,24 @@ export default function DashboardPage() {
 
   const revenueChange = calcChange(metrics.total_sales_revenue, metrics.last_month_revenue)
 
-  // Memoize chart components to prevent unnecessary re-renders
-  const salesChart = useMemo(() => (
-    loading ? <ChartSkeleton /> : <SalesChart data={salesChartData} />
-  ), [loading, salesChartData])
+  // Memoize chart components with individual loading and error states
+  const salesChart = useMemo(() => {
+    if (salesChartState.isLoading) return <ChartSkeleton />
+    if (salesChartState.isError) return <ErrorState compact onRetry={salesChartState.refetch} />
+    return <SalesChart data={salesChartState.data} />
+  }, [salesChartState.isLoading, salesChartState.isError, salesChartState.data, salesChartState.refetch])
 
-  const topProductsChart = useMemo(() => (
-    loading ? <ChartSkeleton /> : <TopProductsChart data={topProductsData} />
-  ), [loading, topProductsData])
+  const topProductsChart = useMemo(() => {
+    if (topProductsState.isLoading) return <ChartSkeleton />
+    if (topProductsState.isError) return <ErrorState compact onRetry={topProductsState.refetch} />
+    return <TopProductsChart data={topProductsState.data} />
+  }, [topProductsState.isLoading, topProductsState.isError, topProductsState.data, topProductsState.refetch])
 
-  const categoryChart = useMemo(() => (
-    loading ? <ChartSkeleton /> : <CategoryPerformanceChart data={categoryPerformance} />
-  ), [loading, categoryPerformance])
+  const categoryChart = useMemo(() => {
+    if (categoryPerformanceState.isLoading) return <ChartSkeleton />
+    if (categoryPerformanceState.isError) return <ErrorState compact onRetry={categoryPerformanceState.refetch} />
+    return <CategoryPerformanceChart data={categoryPerformanceState.data} />
+  }, [categoryPerformanceState.isLoading, categoryPerformanceState.isError, categoryPerformanceState.data, categoryPerformanceState.refetch])
 
   const paymentChart = useMemo(() => (
     loading ? <ChartSkeleton /> : <PaymentMethodsChart data={filteredSales || []} />
@@ -147,13 +156,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Low Stock Banner */}
-      {!loading && metrics.low_stock_count > 0 && (
+      {!metricsState.isLoading && !metricsState.isError && metricsState.data.low_stock_count > 0 && (
         <button onClick={() => router.push('/inventory')}
           className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[#FDECEA] border border-[#F2C4B0] rounded-xl px-4 py-2.5 hover:bg-[#fde0dd] transition-colors group gap-2">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-[#C05050] shrink-0" />
             <span className="text-sm text-[#C05050]">
-              <span className="font-medium">{metrics.low_stock_count} {metrics.low_stock_count === 1 ? 'item needs' : 'items need'} restocking</span>
+              <span className="font-medium">{metricsState.data.low_stock_count} {metricsState.data.low_stock_count === 1 ? 'item needs' : 'items need'} restocking</span>
               <span className="text-[#B89080] ml-1 hidden sm:inline">— check your inventory</span>
             </span>
           </div>
@@ -163,28 +172,40 @@ export default function DashboardPage() {
 
       {/* Row 1 — 6 Core KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
-        {loading ? (
-          <>{[...Array(6)].map((_, i) => <MetricCardSkeleton key={i} />)}</>
-        ) : (
-          <>
-            <HydrationSafeMetricCard label="Total Products" value={metrics.total_products}
-              icon={<Package className="w-4 h-4 text-[#E8896A]" />} />
-            <HydrationSafeMetricCard label="Inventory Value" value={formatCurrency(metrics.total_inventory_value)}
-              icon={<DollarSign className="w-4 h-4 text-[#E8896A]" />} />
-            <HydrationSafeMetricCard label="Sales This Month" value={formatCurrency(metrics.total_sales_revenue)}
-              icon={<TrendingUp className="w-4 h-4 text-[#E8896A]" />}
-              change={revenueChange} />
-            <HydrationSafeMetricCard label="Gross Profit" value={formatCurrency(metrics.gross_profit ?? 0)}
-              icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
-              sub={`${metrics.total_sales_revenue > 0 ? ((metrics.gross_profit ?? 0) / metrics.total_sales_revenue * 100).toFixed(1) : '0'}% margin`} />
-            <HydrationSafeMetricCard label="Avg Order Value" value={formatCurrency(metrics.avg_order_value ?? 0)}
-              icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
-              sub={`${metrics.total_sales_count ?? 0} orders`} />
-            <HydrationSafeMetricCard label="Low Stock Items" value={metrics.low_stock_count}
-              icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
-              danger={metrics.low_stock_count > 0} />
-          </>
-        )}
+        <HydrationSafeMetricCard 
+          label="Total Products" 
+          value={metricsState.isLoading ? 0 : metricsState.data.total_products}
+          icon={<Package className="w-4 h-4 text-[#E8896A]" />} 
+        />
+        <HydrationSafeMetricCard 
+          label="Inventory Value" 
+          value={metricsState.isLoading ? formatCurrency(0) : formatCurrency(metricsState.data.total_inventory_value)}
+          icon={<DollarSign className="w-4 h-4 text-[#E8896A]" />} 
+        />
+        <HydrationSafeMetricCard 
+          label="Sales This Month" 
+          value={metricsState.isLoading ? formatCurrency(0) : formatCurrency(metricsState.data.total_sales_revenue)}
+          icon={<TrendingUp className="w-4 h-4 text-[#E8896A]" />}
+          change={metricsState.isLoading ? null : revenueChange} 
+        />
+        <HydrationSafeMetricCard 
+          label="Gross Profit" 
+          value={metricsState.isLoading ? formatCurrency(0) : formatCurrency(metricsState.data.gross_profit ?? 0)}
+          icon={<Percent className="w-4 h-4 text-[#E8896A]" />}
+          sub={metricsState.isLoading ? '0% margin' : `${metricsState.data.total_sales_revenue > 0 ? ((metricsState.data.gross_profit ?? 0) / metricsState.data.total_sales_revenue * 100).toFixed(1) : '0'}% margin`} 
+        />
+        <HydrationSafeMetricCard 
+          label="Avg Order Value" 
+          value={metricsState.isLoading ? formatCurrency(0) : formatCurrency(metricsState.data.avg_order_value ?? 0)}
+          icon={<BarChart2 className="w-4 h-4 text-[#E8896A]" />}
+          sub={metricsState.isLoading ? '0 orders' : `${metricsState.data.total_sales_count ?? 0} orders`} 
+        />
+        <HydrationSafeMetricCard 
+          label="Low Stock Items" 
+          value={metricsState.isLoading ? 0 : metricsState.data.low_stock_count}
+          icon={<AlertTriangle className="w-4 h-4 text-[#E8896A]" />}
+          danger={!metricsState.isLoading && metricsState.data.low_stock_count > 0} 
+        />
       </div>
 
       {/* Row 2 — Sales Trend (Hero Chart) */}

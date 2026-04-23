@@ -50,6 +50,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const [open, setOpen] = useState(false)
   const [viewDate, setViewDate] = useState(new Date())
   const [hovered, setHovered] = useState<Date | null>(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
   const ref = useRef<HTMLDivElement>(null)
 
   // selecting: if from is set but to is not, we're picking the end
@@ -62,6 +63,31 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const dropdownWidth = 320
+      
+      // Position to the right of the button, but ensure it doesn't go off screen
+      let left = rect.right - dropdownWidth
+      
+      // If it would go off the left edge, align to left of button instead
+      if (left < 8) {
+        left = rect.left
+      }
+      
+      // If still off screen to the right, push it back
+      if (left + dropdownWidth > window.innerWidth - 8) {
+        left = window.innerWidth - dropdownWidth - 8
+      }
+      
+      setPosition({
+        top: rect.bottom + 8,
+        left: Math.max(8, left)
+      })
+    }
+  }, [open])
 
   const hasValue = value.from || value.to
   const label = value.from && value.to
@@ -126,7 +152,13 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-[100] bg-white border border-[#F2C4B0] rounded-xl shadow-xl p-4 w-[320px] max-w-[calc(100vw-2rem)]">
+        <div 
+          className="fixed z-[100] bg-white border border-[#F2C4B0] rounded-xl shadow-xl p-4 w-[320px]"
+          style={{
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+          }}
+        >
 
           {/* Presets */}
           <div className="flex flex-wrap gap-1.5 mb-3">
