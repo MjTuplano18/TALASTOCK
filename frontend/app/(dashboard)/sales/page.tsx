@@ -195,9 +195,9 @@ export default function SalesPage() {
   const [search, setSearch] = useState('')
   const [amountRange, setAmountRange] = useState<RangeValue>({ min: '', max: '' })
   const [dateRange, setDateRange] = useState<DateRange>({ from: null, to: null })
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'all'>('all')
-  const [discountFilter, setDiscountFilter] = useState<DiscountType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<SaleStatus | 'all'>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState('')
+  const [discountFilter, setDiscountFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   // Debounce search to reduce re-renders
   const debouncedSearch = useDebounce(search, 300)
@@ -218,16 +218,16 @@ export default function SalesPage() {
         if (d < dateRange.from) return false
         if (dateRange.to && d > dateRange.to) return false
       }
-      if (paymentMethodFilter !== 'all' && sale.payment_method !== paymentMethodFilter) return false
-      if (discountFilter !== 'all' && sale.discount_type !== discountFilter) return false
-      if (statusFilter !== 'all' && sale.status !== statusFilter) return false
+      if (paymentMethodFilter && sale.payment_method !== paymentMethodFilter) return false
+      if (discountFilter && sale.discount_type !== discountFilter) return false
+      if (statusFilter && sale.status !== statusFilter) return false
       return true
     })
   }, [allSales, debouncedSearch, amountRange, dateRange, paymentMethodFilter, discountFilter, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const hasFilters = search || amountRange.min || amountRange.max || dateRange.from || paymentMethodFilter !== 'all' || discountFilter !== 'all' || statusFilter !== 'all'
+  const hasFilters = search || amountRange.min || amountRange.max || dateRange.from || paymentMethodFilter || discountFilter || statusFilter
   const totalFiltered = filtered.reduce((sum, s) => sum + s.total_amount, 0)
 
   async function handleVoid() {
@@ -395,7 +395,7 @@ export default function SalesPage() {
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <FilterSelect 
           value={paymentMethodFilter} 
-          onChange={(v) => setPaymentMethodFilter(v as PaymentMethod | 'all')} 
+          onChange={setPaymentMethodFilter} 
           placeholder="All Payment Methods"
           options={[
             { label: 'Cash', value: 'cash' },
@@ -407,7 +407,7 @@ export default function SalesPage() {
         />
         <FilterSelect 
           value={discountFilter} 
-          onChange={(v) => setDiscountFilter(v as DiscountType | 'all')} 
+          onChange={setDiscountFilter} 
           placeholder="All Discounts"
           options={[
             { label: 'No Discount', value: 'none' },
@@ -418,7 +418,7 @@ export default function SalesPage() {
         />
         <FilterSelect 
           value={statusFilter} 
-          onChange={(v) => setStatusFilter(v as SaleStatus | 'all')} 
+          onChange={setStatusFilter} 
           placeholder="All Statuses"
           options={[
             { label: 'Completed', value: 'completed' },
@@ -427,7 +427,7 @@ export default function SalesPage() {
           ]} 
         />
         {hasFilters && (
-          <button onClick={() => { setSearch(''); setAmountRange({ min: '', max: '' }); setDateRange({ from: null, to: null }); setPaymentMethodFilter('all'); setDiscountFilter('all'); setStatusFilter('all') }}
+          <button onClick={() => { setSearch(''); setAmountRange({ min: '', max: '' }); setDateRange({ from: null, to: null }); setPaymentMethodFilter(''); setDiscountFilter(''); setStatusFilter('') }}
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
         <div className="flex items-center gap-2 ml-auto">
