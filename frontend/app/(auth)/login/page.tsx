@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { signIn } from '@/lib/auth'
@@ -22,6 +23,7 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const {
     register,
@@ -97,13 +99,27 @@ export default function LoginPage() {
 
               <div>
                 <label className="text-xs font-medium text-[#7A3E2E] mb-1.5 block">Password</label>
-                <Input
-                  type="password"
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] h-11 text-sm"
-                  {...register('password')}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    className="border-[#F2C4B0] focus-visible:ring-[#E8896A] text-[#7A3E2E] h-11 text-sm pr-10"
+                    {...register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B89080] hover:text-[#7A3E2E] transition-colors"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-xs text-[#C05050] mt-1">{errors.password.message}</p>
                 )}

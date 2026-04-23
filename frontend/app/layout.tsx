@@ -9,7 +9,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-plus-jakarta-sans',
-  display: 'swap',
+  display: 'optional', // Changed from 'swap' to 'optional' to prevent flash
 })
 
 export const metadata: Metadata = {
