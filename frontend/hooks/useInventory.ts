@@ -39,6 +39,7 @@ export function useInventory() {
       if (!session) throw new Error('Not authenticated')
 
       await adjustInventoryQuery(productId, quantity, note, session.user.id)
+      // Force refetch to get the latest data
       await fetchInventory()
       toast.success('Inventory updated')
       return true
@@ -126,6 +127,7 @@ export function useInventory() {
         }
       }
 
+      // Force refetch to get the latest data
       await fetchInventory()
       return { imported, skipped }
     } catch (err) {

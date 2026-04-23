@@ -84,9 +84,8 @@ export function useProducts() {
     setCached(CACHE_KEY, optimistic)
     try {
       const updated = await updateProductQuery(id, data)
-      const final = allProducts.map(p => (p.id === id ? updated : p))
-      setAllProducts(final)
-      setCached(CACHE_KEY, final)
+      // Force refetch to get the latest data from database
+      await fetchProducts(true)
       enhancedToast.success('Product updated')
       return updated
     } catch (err) {

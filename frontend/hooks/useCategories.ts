@@ -59,9 +59,8 @@ export function useCategories() {
   async function updateCategory(id: string, name: string): Promise<Category | null> {
     try {
       const updated = await updateCategoryQuery(id, name)
-      const list = categories.map(c => (c.id === id ? updated : c)).sort((a, b) => a.name.localeCompare(b.name))
-      setCategories(list)
-      setCached(CACHE_KEY, list)
+      // Force refetch to get the latest data from database
+      await fetchCategories(true)
       toast.success('Category updated')
       return updated
     } catch (err) {
