@@ -62,5 +62,5 @@ export function useRealtimeInventory() {
     }
   }, [fetchInventory])
 
-  return { inventory, loading, error, connected }
+  return { inventory, loading, error, connected, refetch: () => fetchInventory(true) }
 }

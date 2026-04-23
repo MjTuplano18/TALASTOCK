@@ -70,7 +70,7 @@ function ThresholdCell({ item, onSave }: { item: InventoryItem; onSave: (id: str
 }
 
 export default function InventoryPage() {
-  const { inventory, loading, error } = useRealtimeInventory()
+  const { inventory, loading, error, refetch } = useRealtimeInventory()
   const { adjustInventory, bulkImportInventory } = useInventory()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -395,6 +395,8 @@ export default function InventoryPage() {
           item={adjustTarget}
           onSubmit={async (quantity, note) => {
             await adjustInventory(adjustTarget.product_id, quantity, note)
+            // Force refetch to update the UI immediately
+            refetch()
             setAdjustTarget(null)
           }}
         />
@@ -407,7 +409,8 @@ export default function InventoryPage() {
         onClose={() => setImportModalOpen(false)}
         onSuccess={() => {
           setImportModalOpen(false)
-          // Inventory will auto-refresh via realtime
+          // Force refetch to update the UI immediately
+          refetch()
         }}
         products={products}
         inventory={inventory}
