@@ -28,11 +28,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={plusJakartaSans.variable}>
-      <head>
-        <link rel="icon" type="image/png" href="/favicon.png" />
-        <link rel="shortcut icon" type="image/png" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/images/talastock_icon_only.png" />
-      </head>
       <body className={`antialiased ${plusJakartaSans.className}`}>
         <UnregisterServiceWorker />
         <QueryProvider>
