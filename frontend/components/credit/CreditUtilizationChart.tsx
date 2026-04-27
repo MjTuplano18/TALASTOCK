@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer } from 'recharts'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
-import type { ChartConfig } from '@/components/ui/chart'
 import { supabase } from '@/lib/supabase'
 
 interface ChartData {
@@ -13,13 +11,6 @@ interface ChartData {
   balance: number
   limit: number
 }
-
-const chartConfig = {
-  utilization: {
-    label: 'Credit Utilization',
-    color: '#E8896A',
-  },
-} satisfies ChartConfig
 
 export function CreditUtilizationChart() {
   const [loading, setLoading] = useState(true)
@@ -76,16 +67,13 @@ export function CreditUtilizationChart() {
   }
 
   return (
-    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+    <ResponsiveContainer width="100%" height={250}>
       <BarChart data={data} layout="vertical">
         <CartesianGrid strokeDasharray="3 3" stroke="#F2C4B0" horizontal={false} />
         <XAxis type="number" stroke="#B89080" fontSize={12} tickLine={false} axisLine={false}
           tickFormatter={(value) => `${value}%`} domain={[0, 100]} />
         <YAxis type="category" dataKey="name" stroke="#B89080" fontSize={11} 
           tickLine={false} axisLine={false} width={100} />
-        <ChartTooltip 
-          content={<ChartTooltipContent hideLabel />}
-        />
         <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
           {data.map((entry, index) => (
             <Cell 
@@ -95,6 +83,6 @@ export function CreditUtilizationChart() {
           ))}
         </Bar>
       </BarChart>
-    </ChartContainer>
+    </ResponsiveContainer>
   )
 }

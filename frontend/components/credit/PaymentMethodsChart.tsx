@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Pie, PieChart, Cell, Legend, ResponsiveContainer } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
-import type { ChartConfig } from '@/components/ui/chart'
 import { supabase } from '@/lib/supabase'
 
 interface PaymentMethodsChartProps {
@@ -34,32 +32,6 @@ const LABELS: Record<string, string> = {
   gcash: 'GCash',
   other: 'Other',
 }
-
-const chartConfig = {
-  amount: {
-    label: 'Amount',
-  },
-  cash: {
-    label: 'Cash',
-    color: COLORS.cash,
-  },
-  bank_transfer: {
-    label: 'Bank Transfer',
-    color: COLORS.bank_transfer,
-  },
-  check: {
-    label: 'Check',
-    color: COLORS.check,
-  },
-  gcash: {
-    label: 'GCash',
-    color: COLORS.gcash,
-  },
-  other: {
-    label: 'Other',
-    color: COLORS.other,
-  },
-} satisfies ChartConfig
 
 export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartProps) {
   const [loading, setLoading] = useState(true)
@@ -147,11 +119,8 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
   }
 
   return (
-    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+    <ResponsiveContainer width="100%" height={250}>
       <PieChart>
-        <ChartTooltip 
-          content={<ChartTooltipContent hideLabel />}
-        />
         <Pie
           data={data}
           dataKey="amount"
@@ -161,7 +130,7 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
           innerRadius={50}
           outerRadius={80}
           paddingAngle={2}
-          label={({ method, amount }) => `₱${amount.toLocaleString()}`}
+          label={({ amount }) => `₱${amount.toLocaleString()}`}
           labelLine={false}
         >
           {data.map((entry, index) => (
@@ -170,7 +139,7 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
         </Pie>
         <Legend content={renderLegend} />
       </PieChart>
-    </ChartContainer>
+    </ResponsiveContainer>
   )
 }
 
