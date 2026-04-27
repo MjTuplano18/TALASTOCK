@@ -6,7 +6,9 @@ import {
   flexRender,
   type ColumnDef,
 } from '@tanstack/react-table'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +25,17 @@ interface CustomersTableProps {
 }
 
 export function CustomersTable({ customers, onEdit, onDelete, onRowClick }: CustomersTableProps) {
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
+    await onDelete(deleteTarget.id)
+    setDeleteLoading(false)
+    setDeleteTarget(null)
+  }
+
   const columns: ColumnDef<Customer>[] = [
     {
       accessorKey: 'name',
@@ -105,31 +118,51 @@ export function CustomersTable({ customers, onEdit, onDelete, onRowClick }: Cust
     },
     {
       id: 'actions',
-      header: '',
+      header: () => null,
       cell: ({ row }) => (
-        // Stop row click from firing when interacting with the menu
-        <div onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="h-8 w-8 p-0 hover:bg-[#FDE8DF] rounded-lg inline-flex items-center justify-center transition-colors focus:outline-none">
-              <MoreHorizontal className="h-4 w-4 text-[#7A3E2E]" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="border-[#F2C4B0]">
-              <DropdownMenuItem
-                onClick={() => onEdit(row.original)}
-                className="text-[#7A3E2E] hover:bg-[#FDE8DF] cursor-pointer"
+        <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+          {/* Desktop: Show Edit and Delete buttons */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <Button size="sm" variant="ghost"
+              className="h-8 px-2.5 text-[#7A3E2E] hover:text-[#E8896A] hover:bg-[#FDE8DF] transition-colors"
+              onClick={() => onEdit(row.original)}>
+              <Pencil className="w-3.5 h-3.5 mr-1" />
+              <span className="text-xs">Edit</span>
+            </Button>
+            <Button size="sm" variant="ghost"
+              className="h-8 px-2.5 text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+              onClick={() => setDeleteTarget(row.original)}>
+              <Trash2 className="w-3.5 h-3.5 mr-1" />
+              <span className="text-xs">Delete</span>
+            </Button>
+          </div>
+          
+          {/* Mobile/Tablet: Show 3-dot menu */}
+          <div className="lg:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="h-8 w-8 p-0 rounded-md text-[#B89080] hover:text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors flex items-center justify-center border border-[#F2C4B0] bg-white shadow-sm cursor-pointer"
               >
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(row.original.id)}
-                className="text-[#C05050] hover:bg-[#FDECEA] cursor-pointer"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <MoreVertical className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="border-[#F2C4B0] bg-white shadow-lg">
+                <DropdownMenuItem
+                  onClick={() => onEdit(row.original)}
+                  className="text-[#7A3E2E] hover:bg-[#FDE8DF] focus:bg-[#FDE8DF]"
+                >
+                  <Pencil className="w-3.5 h-3.5 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setDeleteTarget(row.original)}
+                  className="text-[#C05050] hover:bg-[#FDECEA] focus:bg-[#FDECEA]"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       ),
     },
@@ -142,36 +175,50 @@ export function CustomersTable({ customers, onEdit, onDelete, onRowClick }: Cust
   })
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id} className="border-b border-[#F2C4B0]">
-            {headerGroup.headers.map((header) => (
-              <th
-                key={header.id}
-                className="text-left py-3 px-3 text-[#B89080] font-medium text-xs"
-              >
-                {flexRender(header.column.columnDef.header, header.getContext())}
-              </th>
-            ))}
-          </tr>
-        ))}
-      </thead>
-      <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr
-            key={row.id}
-            onClick={() => onRowClick(row.original)}
-            className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0] cursor-pointer transition-colors"
-          >
-            {row.getVisibleCells().map((cell) => (
-              <td key={cell.id} className="py-3 px-3">
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <>
+      <table className="w-full text-sm">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id} className="border-b border-[#F2C4B0]">
+              {headerGroup.headers.map((header) => (
+                <th
+                  key={header.id}
+                  className="text-left py-3 px-3 text-[#B89080] font-medium text-xs"
+                >
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {table.getRowModel().rows.map((row) => (
+            <tr
+              key={row.id}
+              onClick={() => onRowClick(row.original)}
+              className="border-b border-[#FDE8DF] hover:bg-[#FDF6F0] cursor-pointer transition-colors"
+            >
+              {row.getVisibleCells().map((cell) => (
+                <td key={cell.id} className="py-3 px-3">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={open => { if (!open) setDeleteTarget(null) }}
+        title="Delete customer"
+        description={`Are you sure you want to delete "${deleteTarget?.name}"? This will also delete all associated credit sales and payment records.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        loading={deleteLoading}
+        danger
+      />
+    </>
   )
 }
