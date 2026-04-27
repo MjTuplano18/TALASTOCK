@@ -242,24 +242,36 @@ export default function SalesPage() {
     setVoiding(true)
     try {
       // Delete sale items first, then the sale
-      await supabase.from('sale_items').delete().eq('sale_id', voidTarget.id)
-      const { error } = await supabase.from('sales').delete().eq('id', voidTarget.id)
-      if (error) throw error
-      
-      // Invalidate cache
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('talastock_cache_sales')
+      const { error: itemsError } = await supabase.from('sale_items').delete().eq('sale_id', voidTarget.id)
+      if (itemsError) {
+        console.error('Failed to delete sale items:', itemsError)
+        throw new Error('Failed to delete sale items')
       }
       
-      // Close dialog first
+      const { error: saleError } = await supabase.from('sales').delete().eq('id', voidTarget.id)
+      if (saleError) {
+        console.error('Failed to delete sale:', saleError)
+        throw new Error('Failed to delete sale')
+      }
+      
+      // Invalidate all related caches
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('talastock_cache_sales')
+        localStorage.removeItem('talastock_ai_talastock:ai:insight')
+        localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
+      }
+      
+      // Show success toast
+      toast.success('Sale voided successfully')
+      
+      // Close dialog
       setVoidTarget(null)
       
-      // Show success and refetch
-      toast.success('Sale voided successfully')
+      // Force refetch to update UI
       await refetch()
     } catch (err) {
       console.error('Void error:', err)
-      toast.error('Failed to void sale')
+      toast.error(err instanceof Error ? err.message : 'Failed to void sale')
     } finally {
       setVoiding(false)
     }
@@ -304,16 +316,26 @@ export default function SalesPage() {
       const response = await processSaleRefund(refundRequest, user.id)
       
       if (response.success) {
+        // Invalidate all related caches
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('talastock_cache_sales')
+          localStorage.removeItem('talastock_cache_inventory')
+          localStorage.removeItem('talastock_ai_talastock:ai:insight')
+          localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
+        }
+        
         toast.success(response.message)
         setRefundModalOpen(false)
         setRefundTarget(null)
+        
+        // Force refetch to update UI
         await refetch()
       } else {
         toast.error(response.message)
       }
     } catch (error) {
       console.error('Refund error:', error)
-      toast.error('Failed to process refund')
+      toast.error(error instanceof Error ? error.message : 'Failed to process refund')
     } finally {
       setRefunding(false)
     }

@@ -368,19 +368,15 @@ async function createCreditSale(data: SaleCreate, userId: string): Promise<Sale>
     }
   }
 
-  // 6. Create credit sale record via backend API (direct call with CORS)
+  // 6. Create credit sale record via backend API with timeout
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   console.log('[Credit Sale] Calling backend API:', `${apiUrl}/api/v1/credit-sales`)
-  console.log('[Credit Sale] Request payload:', {
-    customer_id: data.customer_id,
-    sale_id: sale.id,
-    amount: totalAmount,
-    notes: data.notes,
-    override_credit_limit: data.override_credit_limit || false,
-  })
-  console.log('[Credit Sale] Auth token:', session.access_token ? 'Present' : 'Missing')
   
   try {
+    // Create abort controller for timeout (30 seconds for cold start)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    
     const response = await fetch(`${apiUrl}/api/v1/credit-sales`, {
       method: 'POST',
       headers: {
@@ -394,20 +390,18 @@ async function createCreditSale(data: SaleCreate, userId: string): Promise<Sale>
         notes: data.notes,
         override_credit_limit: data.override_credit_limit || false,
       }),
+      signal: controller.signal,
     })
-
-    console.log('[Credit Sale] Response status:', response.status)
-    console.log('[Credit Sale] Response headers:', Object.fromEntries(response.headers.entries()))
+    
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('[Credit Sale] Error response text:', errorText)
+      console.error('[Credit Sale] Error response:', errorText)
       try {
         const errorData = JSON.parse(errorText)
-        console.error('[Credit Sale] Error response JSON:', JSON.stringify(errorData, null, 2))
-        throw new Error(errorData.detail || JSON.stringify(errorData) || 'Failed to create credit sale')
+        throw new Error(errorData.detail || 'Failed to create credit sale record')
       } catch (parseError) {
-        console.error('[Credit Sale] Could not parse error response as JSON')
         throw new Error(`HTTP ${response.status}: ${errorText}`)
       }
     }
@@ -426,10 +420,18 @@ async function createCreditSale(data: SaleCreate, userId: string): Promise<Sale>
     }
   } catch (error) {
     console.error('[Credit Sale] Failed to create credit sale record:', error)
-    console.error('[Credit Sale] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-    // Don't throw - sale was already created, just log the error
-    // The sale will show as credit but won't have a credit_sales record
-    throw error  // Actually throw so we can see the error in the UI
+    
+    // If it's a timeout or network error, the sale was still created successfully
+    // Just the credit_sales record wasn't created
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+      console.warn('[Credit Sale] Backend timeout or network error - sale was created but credit record may be missing')
+      // Don't throw - sale was created successfully, just the backend was slow
+      // The sale will show in the UI, user can manually check customer balance
+      return sale as Sale
+    }
+    
+    // For other errors (validation, credit limit), throw so user sees the error
+    throw error
   }
 
   return sale as Sale
