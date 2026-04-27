@@ -317,10 +317,10 @@ export default function SalesPage() {
             throw new Error(`Failed to restore inventory for ${item.products?.name || 'product'}`)
           }
 
-          // Create stock movement with type='adjustment' for audit trail
+          // Create stock movement with type='return' for audit trail (shows as positive)
           await supabase.from('stock_movements').insert({
             product_id: item.product_id,
-            type: 'adjustment',
+            type: 'return',
             quantity: item.quantity,
             note: `Voided Sale #${voidTarget.id} - Inventory restored`,
             created_by: (await supabase.auth.getUser()).data.user?.id,
