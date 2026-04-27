@@ -3,7 +3,7 @@ from typing import Optional
 from database.supabase import get_supabase
 from dependencies.auth import verify_token
 from models.schemas import CreditSaleCreate, CreditSaleResponse, PaymentCreate
-from lib.cache import get_cached, set_cached, invalidate
+from lib.cache import get_cached, set_cached, invalidate, invalidate_pattern
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 import logging
@@ -28,23 +28,32 @@ def _range_to_days(range_str: str) -> int:
 
 @router.get("/trend")
 async def get_credit_sales_trend(
-    range: str = Query("30d", description="Date range: 7d, 30d, 3m, 6m"),
+    start_date: Optional[str] = Query(None, description="Start date (ISO format YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (ISO format YYYY-MM-DD)"),
     user=Depends(verify_token)
 ):
     """
     Get credit sales trend grouped by date.
     
     Returns daily aggregated credit sales for the specified date range.
+    If no dates provided, defaults to last 30 days.
     """
     db = get_supabase()
     
     # Calculate date range
-    days = _range_to_days(range)
-    start_date = (datetime.utcnow() - timedelta(days=days)).date()
+    if start_date and end_date:
+        start = datetime.fromisoformat(start_date).date()
+        end = datetime.fromisoformat(end_date).date()
+    else:
+        # Default to last 30 days
+        end = datetime.utcnow().date()
+        start = end - timedelta(days=30)
     
     # Query credit sales
     result = db.table("credit_sales").select("created_at, amount").gte(
-        "created_at", start_date.isoformat()
+        "created_at", start.isoformat()
+    ).lte(
+        "created_at", end.isoformat()
     ).execute()
     
     # Group by date
@@ -206,6 +215,8 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
     await invalidate(f"{CACHE_KEY_PREFIX}:list*")
     await invalidate(f"customers:detail:{payload.customer_id}")
     await invalidate(f"customers:list*")
+    # Invalidate credit KPIs cache so dashboard updates immediately
+    await invalidate_pattern(f"reports:credit-kpis:*")
     
     response_data = {
         "success": True,
@@ -562,6 +573,8 @@ async def record_payment(payload: PaymentCreate, user=Depends(verify_token)):
     await invalidate(f"customers:list*")
     await invalidate(f"credit_sales:list*")
     await invalidate(f"credit_sales:customer:{payload.customer_id}*")
+    # Invalidate credit KPIs cache so dashboard updates immediately
+    await invalidate_pattern(f"reports:credit-kpis:*")
     
     response_data = {
         "success": True,

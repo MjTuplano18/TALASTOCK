@@ -3,7 +3,7 @@ from typing import Optional
 from database.supabase import get_supabase
 from dependencies.auth import verify_token
 from models.schemas import PaymentCreate, PaymentResponse
-from lib.cache import get_cached, set_cached, invalidate
+from lib.cache import get_cached, set_cached, invalidate, invalidate_pattern
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import logging
@@ -28,23 +28,32 @@ def _range_to_days(range_str: str) -> int:
 
 @router.get("/trend")
 async def get_payments_trend(
-    range: str = Query("30d", description="Date range: 7d, 30d, 3m, 6m"),
+    start_date: Optional[str] = Query(None, description="Start date (ISO format YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (ISO format YYYY-MM-DD)"),
     user=Depends(verify_token)
 ):
     """
     Get payment collection trend grouped by date.
     
     Returns daily aggregated payments for the specified date range.
+    If no dates provided, defaults to last 30 days.
     """
     db = get_supabase()
     
     # Calculate date range
-    days = _range_to_days(range)
-    start_date = (datetime.utcnow() - timedelta(days=days)).date()
+    if start_date and end_date:
+        start = datetime.fromisoformat(start_date).date()
+        end = datetime.fromisoformat(end_date).date()
+    else:
+        # Default to last 30 days
+        end = datetime.utcnow().date()
+        start = end - timedelta(days=30)
     
     # Query payments
     result = db.table("payments").select("payment_date, amount").gte(
-        "payment_date", start_date.isoformat()
+        "payment_date", start.isoformat()
+    ).lte(
+        "payment_date", end.isoformat()
     ).execute()
     
     # Group by date
@@ -237,6 +246,8 @@ async def record_payment(payload: PaymentCreate, user=Depends(verify_token)):
     await invalidate(f"customers:list*")
     await invalidate(f"credit_sales:list*")
     await invalidate(f"credit_sales:customer:{payload.customer_id}*")
+    # Invalidate credit KPIs cache so dashboard updates immediately
+    await invalidate_pattern(f"reports:credit-kpis:*")
     
     response_data = {
         "success": True,

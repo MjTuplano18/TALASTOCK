@@ -75,30 +75,12 @@ export default function DashboardPage() {
 
   const { startDate, endDate, preset } = useDateRangeQuery()
   
-  // Convert global date range preset to simple format for Credit tab
-  const dateRange: DateRange = useMemo(() => {
-    if (preset === 'last_7_days' || preset === 'today' || preset === 'yesterday') return '7d'
-    if (preset === 'last_30_days' || preset === 'this_month') return '30d'
-    if (preset === 'last_month') return '3m'
-    if (preset === 'this_year') return '6m'
-    if (preset === 'custom') {
-      // For custom ranges, estimate based on date difference
-      if (!startDate || !endDate) return '30d'
-      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-      if (days <= 7) return '7d'
-      if (days <= 30) return '30d'
-      if (days <= 90) return '3m'
-      return '6m'
-    }
-    return '30d' // default
-  }, [preset, startDate, endDate])
-
   const {
     metricsState, salesChartState, topProductsState, categoryPerformanceState,
     // Legacy data for backward compatibility
     metrics, salesChartData, topProductsData, revenueChartData,
     recentSales, categoryPerformance, deadStock, loading, error, refresh,
-  } = useDashboardQuery(dateRange)
+  } = useDashboardQuery('30d') // Use default for Overview tab
 
   const { allProducts } = useProducts()
   const { createSale, allSales } = useSales()
@@ -251,7 +233,6 @@ export default function DashboardPage() {
         />
       ) : (
         <CreditDashboardTab 
-          dateRange={dateRange} 
           refreshTrigger={creditRefreshTrigger}
           startDate={startDate}
           endDate={endDate}

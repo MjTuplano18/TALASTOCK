@@ -5,10 +5,9 @@ import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
 import { supabase } from '@/lib/supabase'
 
-type DateRange = '7d' | '30d' | '3m' | '6m'
-
 interface PaymentCollectionChartProps {
-  dateRange: DateRange
+  startDate?: Date
+  endDate?: Date
 }
 
 interface ChartData {
@@ -16,13 +15,13 @@ interface ChartData {
   amount: number
 }
 
-export function PaymentCollectionChart({ dateRange }: PaymentCollectionChartProps) {
+export function PaymentCollectionChart({ startDate, endDate }: PaymentCollectionChartProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ChartData[]>([])
 
   useEffect(() => {
     fetchData()
-  }, [dateRange])
+  }, [startDate, endDate])
 
   async function fetchData() {
     setLoading(true)
@@ -30,8 +29,13 @@ export function PaymentCollectionChart({ dateRange }: PaymentCollectionChartProp
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      // Build query params
+      const params = new URLSearchParams()
+      if (startDate) params.append('start_date', startDate.toISOString().split('T')[0])
+      if (endDate) params.append('end_date', endDate.toISOString().split('T')[0])
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/payments/trend?range=${dateRange}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/payments/trend?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,

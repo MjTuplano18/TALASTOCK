@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { CreditCard, AlertCircle, TrendingUp, Info } from 'lucide-react'
 import { HydrationSafeMetricCard } from '@/components/shared/HydrationSafeMetricCard'
 import { MetricCardSkeleton } from '@/components/shared/LoadingSkeleton'
@@ -13,8 +13,6 @@ import { OverdueCustomersTable } from '@/components/credit/OverdueCustomersTable
 import { formatCurrency } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
 
-type DateRange = '7d' | '30d' | '3m' | '6m'
-
 interface CreditMetrics {
   total_credit_outstanding: number
   overdue_balance: number
@@ -22,13 +20,12 @@ interface CreditMetrics {
 }
 
 interface CreditDashboardTabProps {
-  dateRange: DateRange
   refreshTrigger?: number
   startDate?: Date
   endDate?: Date
 }
 
-export function CreditDashboardTab({ dateRange, refreshTrigger, startDate, endDate }: CreditDashboardTabProps) {
+export function CreditDashboardTab({ refreshTrigger, startDate, endDate }: CreditDashboardTabProps) {
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<CreditMetrics>({
     total_credit_outstanding: 0,
@@ -38,12 +35,13 @@ export function CreditDashboardTab({ dateRange, refreshTrigger, startDate, endDa
 
   useEffect(() => {
     fetchCreditMetrics()
-  }, [dateRange, refreshTrigger])
+  }, [refreshTrigger])
 
   async function fetchCreditMetrics() {
     setLoading(true)
     try {
-      const response = await apiFetch(`/api/v1/reports/credit-kpis?range=${dateRange}`)
+      // KPIs are not filtered by date - they show current state
+      const response = await apiFetch(`/api/v1/reports/credit-kpis?range=30d`)
       if (response.ok) {
         const result = await response.json()
         const data = result.data ?? result
@@ -105,13 +103,13 @@ export function CreditDashboardTab({ dateRange, refreshTrigger, startDate, endDa
         )}
       </div>
 
-      {/* Charts Row 1 - Trends (Coming Soon) */}
+      {/* Charts Row 1 - Trends */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <ChartCard title="Credit Sales Trend">
-          <CreditSalesTrendChart dateRange={dateRange} />
+          <CreditSalesTrendChart startDate={startDate} endDate={endDate} />
         </ChartCard>
         <ChartCard title="Payment Collection">
-          <PaymentCollectionChart dateRange={dateRange} />
+          <PaymentCollectionChart startDate={startDate} endDate={endDate} />
         </ChartCard>
       </div>
 
