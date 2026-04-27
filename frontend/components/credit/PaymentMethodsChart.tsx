@@ -49,10 +49,10 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
         .select('payment_method, amount')
 
       // Apply date filters if provided
-      if (startDate) {
+      if (startDate && startDate instanceof Date) {
         query = query.gte('payment_date', startDate.toISOString().split('T')[0])
       }
-      if (endDate) {
+      if (endDate && endDate instanceof Date) {
         query = query.lte('payment_date', endDate.toISOString().split('T')[0])
       }
 
