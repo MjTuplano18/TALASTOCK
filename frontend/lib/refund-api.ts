@@ -94,6 +94,65 @@ export async function processSaleRefund(
       throw new Error('Failed to update sale record')
     }
 
+    // Step 4.5: Update customer balance if this is a credit sale
+    if (originalSale.payment_method === 'credit') {
+      const { data: creditSale, error: creditSaleError } = await supabase
+        .from('credit_sales')
+        .select('id, customer_id, amount, customers(current_balance)')
+        .eq('sale_id', refundRequest.sale_id)
+        .single()
+      
+      if (creditSaleError) {
+        console.warn('Credit sale not found, skipping balance update:', creditSaleError)
+      } else if (creditSale) {
+        // Calculate new customer balance (subtract refund amount)
+        const currentBalance = creditSale.customers?.current_balance || 0
+        const newBalance = Math.max(0, currentBalance - refundRequest.total_refund_amount)
+        
+        // Update customer balance
+        const { error: balanceError } = await supabase
+          .from('customers')
+          .update({ 
+            current_balance: newBalance,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', creditSale.customer_id)
+        
+        if (balanceError) {
+          console.error('Failed to update customer balance:', balanceError)
+          // Don't throw - refund is already processed
+          console.warn('Refund completed but customer balance not updated')
+        } else {
+          console.log(`Customer balance updated: ${currentBalance} → ${newBalance}`)
+        }
+        
+        // If full refund, delete credit sale record
+        if (refundRequest.is_full_refund) {
+          const { error: deleteCreditError } = await supabase
+            .from('credit_sales')
+            .delete()
+            .eq('id', creditSale.id)
+          
+          if (deleteCreditError) {
+            console.error('Failed to delete credit sale:', deleteCreditError)
+            // Don't throw - refund is already processed
+          }
+        } else {
+          // If partial refund, update credit sale amount
+          const newCreditAmount = creditSale.amount - refundRequest.total_refund_amount
+          const { error: updateCreditError } = await supabase
+            .from('credit_sales')
+            .update({ amount: Math.max(0, newCreditAmount) })
+            .eq('id', creditSale.id)
+          
+          if (updateCreditError) {
+            console.error('Failed to update credit sale amount:', updateCreditError)
+            // Don't throw - refund is already processed
+          }
+        }
+      }
+    }
+
     // Step 5: Restore inventory and create stock movements for each refunded item
     for (const refundItem of refundRequest.items) {
       // Get current inventory

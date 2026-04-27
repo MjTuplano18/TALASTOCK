@@ -241,6 +241,51 @@ export default function SalesPage() {
     if (!voidTarget) return
     setVoiding(true)
     try {
+      // Step 0: If this is a credit sale, restore customer balance
+      if (voidTarget.payment_method === 'credit') {
+        // Find the credit sale record
+        const { data: creditSale, error: creditSaleError } = await supabase
+          .from('credit_sales')
+          .select('id, customer_id, amount, customers(current_balance)')
+          .eq('sale_id', voidTarget.id)
+          .single()
+        
+        if (creditSaleError) {
+          console.warn('Credit sale not found, continuing with void:', creditSaleError)
+        } else if (creditSale) {
+          // Calculate new customer balance (subtract the credit sale amount)
+          const currentBalance = creditSale.customers?.current_balance || 0
+          const newBalance = Math.max(0, currentBalance - creditSale.amount)
+          
+          // Update customer balance
+          const { error: balanceError } = await supabase
+            .from('customers')
+            .update({ 
+              current_balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', creditSale.customer_id)
+          
+          if (balanceError) {
+            console.error('Failed to update customer balance:', balanceError)
+            throw new Error('Failed to restore customer credit balance')
+          }
+          
+          // Delete the credit sale record
+          const { error: deleteCreditError } = await supabase
+            .from('credit_sales')
+            .delete()
+            .eq('id', creditSale.id)
+          
+          if (deleteCreditError) {
+            console.error('Failed to delete credit sale:', deleteCreditError)
+            // Continue anyway - the sale will still be voided
+          }
+          
+          console.log(`Customer balance restored: ${currentBalance} → ${newBalance}`)
+        }
+      }
+      
       // Step 1: Restore inventory for each item in the sale
       if (voidTarget.sale_items && voidTarget.sale_items.length > 0) {
         for (const item of voidTarget.sale_items) {
@@ -301,12 +346,16 @@ export default function SalesPage() {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('talastock_cache_sales')
         localStorage.removeItem('talastock_cache_inventory')
+        localStorage.removeItem('talastock_cache_customers')
         localStorage.removeItem('talastock_ai_talastock:ai:insight')
         localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
       }
       
       // Show success toast
-      toast.success('Sale voided and inventory restored')
+      const message = voidTarget.payment_method === 'credit' 
+        ? 'Sale voided, inventory and customer balance restored'
+        : 'Sale voided and inventory restored'
+      toast.success(message)
       
       // Close dialog
       setVoidTarget(null)
@@ -614,13 +663,15 @@ export default function SalesPage() {
                                   <RotateCcw className="w-3.5 h-3.5" />
                                 </button>
                               )}
-                              {/* Void button */}
-                              <button
-                                onClick={() => setVoidTarget(sale)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
-                                title="Void this sale">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {/* Void button - only show for non-refunded sales */}
+                              {sale.status !== 'refunded' && (
+                                <button
+                                  onClick={() => setVoidTarget(sale)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+                                  title="Void this sale">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -684,12 +735,14 @@ export default function SalesPage() {
                               <RotateCcw className="w-4 h-4" />
                             </button>
                           )}
-                          <button
-                            onClick={() => setVoidTarget(sale)}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
-                            title="Void this sale">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {sale.status !== 'refunded' && (
+                            <button
+                              onClick={() => setVoidTarget(sale)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg text-[#B89080] hover:text-[#C05050] hover:bg-[#FDECEA] transition-colors"
+                              title="Void this sale">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
