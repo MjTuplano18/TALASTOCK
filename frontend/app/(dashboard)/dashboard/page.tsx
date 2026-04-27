@@ -250,7 +250,12 @@ export default function DashboardPage() {
           revenueChange={revenueChange}
         />
       ) : (
-        <CreditDashboardTab dateRange={dateRange} refreshTrigger={creditRefreshTrigger} />
+        <CreditDashboardTab 
+          dateRange={dateRange} 
+          refreshTrigger={creditRefreshTrigger}
+          startDate={startDate}
+          endDate={endDate}
+        />
       )}
 
       <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen} products={allProducts}

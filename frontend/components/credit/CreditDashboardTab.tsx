@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { CreditCard, AlertCircle, TrendingUp } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { CreditCard, AlertCircle, TrendingUp, Info } from 'lucide-react'
 import { HydrationSafeMetricCard } from '@/components/shared/HydrationSafeMetricCard'
 import { MetricCardSkeleton } from '@/components/shared/LoadingSkeleton'
 import { ChartCard } from '@/components/charts/ChartCard'
 import { CreditSalesTrendChart } from '@/components/credit/CreditSalesTrendChart'
 import { PaymentCollectionChart } from '@/components/credit/PaymentCollectionChart'
+import { CreditUtilizationChart } from '@/components/credit/CreditUtilizationChart'
+import { PaymentMethodsChart } from '@/components/credit/PaymentMethodsChart'
 import { OverdueCustomersTable } from '@/components/credit/OverdueCustomersTable'
 import { formatCurrency } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
@@ -21,10 +23,12 @@ interface CreditMetrics {
 
 interface CreditDashboardTabProps {
   dateRange: DateRange
-  refreshTrigger?: number // Add a trigger prop to force refresh
+  refreshTrigger?: number
+  startDate?: Date
+  endDate?: Date
 }
 
-export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboardTabProps) {
+export function CreditDashboardTab({ dateRange, refreshTrigger, startDate, endDate }: CreditDashboardTabProps) {
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<CreditMetrics>({
     total_credit_outstanding: 0,
@@ -34,7 +38,7 @@ export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboar
 
   useEffect(() => {
     fetchCreditMetrics()
-  }, [dateRange, refreshTrigger]) // Re-fetch when refreshTrigger changes
+  }, [dateRange, refreshTrigger])
 
   async function fetchCreditMetrics() {
     setLoading(true)
@@ -58,6 +62,15 @@ export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboar
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Info Banner */}
+      <div className="bg-[#FDF6F0] border border-[#F2C4B0] rounded-lg px-3 py-2 flex items-start gap-2">
+        <Info className="w-4 h-4 text-[#E8896A] shrink-0 mt-0.5" />
+        <p className="text-xs text-[#7A3E2E]">
+          <span className="font-medium">Note:</span> KPI metrics show current balances (not filtered by date). 
+          Charts below show data for the selected date range.
+        </p>
+      </div>
+
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {loading ? (
@@ -72,12 +85,14 @@ export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboar
               label="Total Credit Outstanding"
               value={formatCurrency(metrics.total_credit_outstanding)}
               icon={<CreditCard className="w-4 h-4 text-[#E8896A]" />}
+              sub="Current balance"
             />
             <HydrationSafeMetricCard
               label="Overdue Balance"
               value={formatCurrency(metrics.overdue_balance)}
               icon={<AlertCircle className="w-4 h-4 text-[#E8896A]" />}
               danger={metrics.overdue_balance > 0}
+              sub="Past due date"
             />
             <HydrationSafeMetricCard
               label="Customers Near Limit"
@@ -90,13 +105,23 @@ export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboar
         )}
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row 1 - Trends (Coming Soon) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <ChartCard title="Credit Sales Trend">
           <CreditSalesTrendChart dateRange={dateRange} />
         </ChartCard>
         <ChartCard title="Payment Collection">
           <PaymentCollectionChart dateRange={dateRange} />
+        </ChartCard>
+      </div>
+
+      {/* Charts Row 2 - Analytics (Working) */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+        <ChartCard title="Credit Utilization by Customer">
+          <CreditUtilizationChart />
+        </ChartCard>
+        <ChartCard title="Payment Methods">
+          <PaymentMethodsChart startDate={startDate} endDate={endDate} />
         </ChartCard>
       </div>
 
