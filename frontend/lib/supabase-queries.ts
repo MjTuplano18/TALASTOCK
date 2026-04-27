@@ -459,23 +459,36 @@ export async function getDashboardMetrics(startDate?: string, endDate?: string):
     return sum + row.quantity * row.products.cost_price
   }, 0)
 
-  // Sales for selected period
-  const { data: salesData } = await supabase.from('sales').select('total_amount')
+  // Sales for selected period (subtract refunded amounts)
+  const { data: salesData } = await supabase.from('sales').select('total_amount, refunded_amount, status')
     .gte('created_at', periodStart).lte('created_at', periodEnd)
-  const total_sales_revenue = (salesData ?? []).reduce((sum, s) => sum + (s as any).total_amount, 0)
-  const total_sales_count = salesData?.length ?? 0
+  
+  // Calculate net revenue (total_amount - refunded_amount for each sale)
+  const total_sales_revenue = (salesData ?? []).reduce((sum, s) => {
+    const sale = s as any
+    const netAmount = sale.total_amount - (sale.refunded_amount || 0)
+    return sum + netAmount
+  }, 0)
+  
+  // Count only non-refunded sales (completed or partially_refunded)
+  const total_sales_count = (salesData ?? []).filter((s: any) => s.status !== 'refunded').length
 
-  // Last month sales (for comparison)
-  const { data: lastSalesData } = await supabase.from('sales').select('total_amount')
+  // Last month sales (for comparison) - subtract refunded amounts
+  const { data: lastSalesData } = await supabase.from('sales').select('total_amount, refunded_amount')
     .gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd)
-  const last_month_revenue = (lastSalesData ?? []).reduce((sum, s) => sum + (s as any).total_amount, 0)
+  const last_month_revenue = (lastSalesData ?? []).reduce((sum, s) => {
+    const sale = s as any
+    const netAmount = sale.total_amount - (sale.refunded_amount || 0)
+    return sum + netAmount
+  }, 0)
 
-  // Gross profit for selected period
+  // Gross profit for selected period (exclude refunded sales)
   const { data: periodSales } = await supabase
     .from('sales')
-    .select('id')
+    .select('id, status')
     .gte('created_at', periodStart)
     .lte('created_at', periodEnd)
+    .neq('status', 'refunded') // Exclude fully refunded sales
   const periodSaleIds = (periodSales ?? []).map((s: any) => s.id)
 
   let gross_profit = 0
@@ -553,14 +566,17 @@ export async function getSalesChartData(range: '7d' | '30d' | '3m' | '6m' = '7d'
 
       const { data, error } = await supabase
         .from('sales')
-        .select('total_amount')
+        .select('total_amount, refunded_amount')
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
 
       if (error) throw new Error(error.message)
 
       const sales = (data ?? []).reduce(
-        (sum, s) => sum + (s as { total_amount: number }).total_amount, 0
+        (sum, s) => {
+          const sale = s as { total_amount: number; refunded_amount: number | null }
+          return sum + (sale.total_amount - (sale.refunded_amount || 0))
+        }, 0
       )
 
       days.push({
@@ -591,14 +607,17 @@ export async function getSalesChartData(range: '7d' | '30d' | '3m' | '6m' = '7d'
 
       const { data, error } = await supabase
         .from('sales')
-        .select('total_amount')
+        .select('total_amount, refunded_amount')
         .gte('created_at', dayStart)
         .lte('created_at', dayEnd)
 
       if (error) throw new Error(error.message)
 
       const sales = (data ?? []).reduce(
-        (sum, s) => sum + (s as { total_amount: number }).total_amount, 0
+        (sum, s) => {
+          const sale = s as { total_amount: number; refunded_amount: number | null }
+          return sum + (sale.total_amount - (sale.refunded_amount || 0))
+        }, 0
       )
 
       const label = range === '7d'
@@ -618,14 +637,17 @@ export async function getSalesChartData(range: '7d' | '30d' | '3m' | '6m' = '7d'
 
       const { data, error } = await supabase
         .from('sales')
-        .select('total_amount')
+        .select('total_amount, refunded_amount')
         .gte('created_at', weekStart.toISOString())
         .lte('created_at', weekEnd.toISOString())
 
       if (error) throw new Error(error.message)
 
       const sales = (data ?? []).reduce(
-        (sum, s) => sum + (s as { total_amount: number }).total_amount, 0
+        (sum, s) => {
+          const sale = s as { total_amount: number; refunded_amount: number | null }
+          return sum + (sale.total_amount - (sale.refunded_amount || 0))
+        }, 0
       )
 
       days.push({
@@ -723,14 +745,17 @@ export async function getRevenueChartData(startDate?: string, endDate?: string):
 
       const { data, error } = await supabase
         .from('sales')
-        .select('total_amount')
+        .select('total_amount, refunded_amount')
         .gte('created_at', monthStart)
         .lte('created_at', monthEnd)
 
       if (error) throw new Error(error.message)
 
       const revenue = (data ?? []).reduce(
-        (sum, s) => sum + (s as { total_amount: number }).total_amount,
+        (sum, s) => {
+          const sale = s as { total_amount: number; refunded_amount: number | null }
+          return sum + (sale.total_amount - (sale.refunded_amount || 0))
+        },
         0
       )
 
@@ -751,14 +776,17 @@ export async function getRevenueChartData(startDate?: string, endDate?: string):
 
     const { data, error } = await supabase
       .from('sales')
-      .select('total_amount')
+      .select('total_amount, refunded_amount')
       .gte('created_at', monthStart)
       .lte('created_at', monthEnd)
 
     if (error) throw new Error(error.message)
 
     const revenue = (data ?? []).reduce(
-      (sum, s) => sum + (s as { total_amount: number }).total_amount,
+      (sum, s) => {
+        const sale = s as { total_amount: number; refunded_amount: number | null }
+        return sum + (sale.total_amount - (sale.refunded_amount || 0))
+      },
       0
     )
 
