@@ -78,7 +78,9 @@ export async function processSaleRefund(
     }
 
     // Step 4: Update sale record with refund information
-    const { error: updateError } = await supabase
+    console.log('[Refund] Updating sale:', refundRequest.sale_id, 'to status:', newStatus, 'refunded_amount:', newRefundedAmount)
+    
+    const { data: updateData, error: updateError } = await supabase
       .from('sales')
       .update({
         status: newStatus,
@@ -88,11 +90,21 @@ export async function processSaleRefund(
         refunded_by: userId,
       })
       .eq('id', refundRequest.sale_id)
+      .select('id, status, refunded_amount')
+
+    console.log('[Refund] Update result:', { data: updateData, error: updateError })
 
     if (updateError) {
-      console.error('Failed to update sale:', updateError)
+      console.error('[Refund] Failed to update sale:', updateError)
       throw new Error('Failed to update sale record')
     }
+    
+    if (!updateData || updateData.length === 0) {
+      console.error('[Refund] Update succeeded but no data returned - possible RLS policy issue')
+      throw new Error('Failed to update sale record - no data returned')
+    }
+    
+    console.log('[Refund] Sale updated successfully:', updateData[0])
 
     // Step 4.5: Update customer balance if this is a credit sale
     if (originalSale.payment_method === 'credit') {
