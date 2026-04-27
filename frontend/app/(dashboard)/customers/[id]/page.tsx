@@ -63,7 +63,7 @@ export default function CustomerDetailPage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      const response = await fetch(`/api/v1/payments`, {
+      const response = await fetch(`/api/v1/credit-sales/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

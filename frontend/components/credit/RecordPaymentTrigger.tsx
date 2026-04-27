@@ -87,7 +87,7 @@ export function RecordPaymentTrigger({
     if (!cid) return
     setSubmitting(true)
     try {
-      const response = await apiFetch('/api/v1/payments', {
+      const response = await apiFetch('/api/v1/credit-sales/payments', {
         method: 'POST',
         body: JSON.stringify({ customer_id: cid, ...data }),
       })

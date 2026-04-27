@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from database.supabase import get_supabase
 from dependencies.auth import verify_token
-from models.schemas import CreditSaleCreate, CreditSaleResponse
+from models.schemas import CreditSaleCreate, CreditSaleResponse, PaymentCreate
 from lib.cache import get_cached, set_cached, invalidate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 import logging
 
@@ -343,3 +343,190 @@ async def get_customer_credit_sales(
         "message": "OK",
         "meta": response_data["meta"]
     }
+
+
+# ─── Payment Recording (Temporary workaround - should be in payments router) ─────
+
+@router.post("/payments", status_code=201)
+async def record_payment(payload: PaymentCreate, user=Depends(verify_token)):
+    """
+    Record a payment from a customer.
+    
+    TEMPORARY: This endpoint is added here as a workaround because the payments router
+    is not loading on Render. This should eventually be moved to /api/v1/payments.
+    
+    - **customer_id**: Customer ID (required)
+    - **credit_sale_id**: Specific credit sale to apply payment to (optional)
+    - **amount**: Payment amount (required, must be positive)
+    - **payment_method**: Payment method (cash, bank_transfer, gcash, other) (required)
+    - **payment_date**: Payment date (optional, defaults to today)
+    - **notes**: Additional notes (optional)
+    
+    Business Rules:
+    - Payment reduces customer balance immediately
+    - If credit_sale_id is provided, payment is applied to that specific invoice
+    - If credit_sale_id is not provided, payment is applied to oldest outstanding invoice (FIFO)
+    - Supports partial payments and overpayments
+    - Overpayments create a credit balance for future purchases
+    """
+    db = get_supabase()
+    
+    # Fetch customer details
+    customer_result = db.table("customers").select("*").eq("id", payload.customer_id).execute()
+    
+    if not customer_result.data:
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
+    
+    customer = customer_result.data[0]
+    current_balance = Decimal(str(customer.get("current_balance", 0)))
+    
+    # Validate payment amount doesn't exceed balance (unless it's an overpayment)
+    if payload.amount > current_balance and current_balance > 0:
+        logger.info(f"Overpayment detected: customer_id={payload.customer_id}, payment={payload.amount}, balance={current_balance}")
+    
+    # Set payment date (default to today if not provided)
+    payment_date_str = payload.payment_date if payload.payment_date else date.today().isoformat()
+    
+    # Create payment record
+    payment_data = {
+        "customer_id": payload.customer_id,
+        "credit_sale_id": payload.credit_sale_id,
+        "amount": float(payload.amount),
+        "payment_method": payload.payment_method,
+        "payment_date": payment_date_str,
+        "notes": payload.notes,
+        "created_by": user["id"],
+    }
+    
+    payment_result = db.table("payments").insert(payment_data).execute()
+    
+    if not payment_result.data:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to record payment"
+        )
+    
+    payment_id = payment_result.data[0]["id"]
+    
+    # Calculate new balance
+    new_balance = current_balance - payload.amount
+    
+    # Update customer balance
+    update_result = (
+        db.table("customers")
+        .update({
+            "current_balance": float(new_balance),
+            "updated_at": datetime.utcnow().isoformat()
+        })
+        .eq("id", payload.customer_id)
+        .execute()
+    )
+    
+    # Apply payment to credit sales
+    remaining_payment = payload.amount
+    
+    if payload.credit_sale_id:
+        # Apply to specific credit sale
+        credit_sale_result = (
+            db.table("credit_sales")
+            .select("*")
+            .eq("id", payload.credit_sale_id)
+            .eq("customer_id", payload.customer_id)
+            .execute()
+        )
+        
+        if not credit_sale_result.data:
+            logger.warning(f"Credit sale not found or doesn't belong to customer: credit_sale_id={payload.credit_sale_id}, customer_id={payload.customer_id}")
+        else:
+            credit_sale = credit_sale_result.data[0]
+            credit_sale_amount = Decimal(str(credit_sale.get("amount", 0)))
+            
+            # Get total payments already made to this credit sale
+            existing_payments_result = (
+                db.table("payments")
+                .select("amount")
+                .eq("credit_sale_id", payload.credit_sale_id)
+                .neq("id", payment_id)  # Exclude current payment
+                .execute()
+            )
+            
+            total_paid = sum(Decimal(str(p["amount"])) for p in existing_payments_result.data)
+            total_paid += payload.amount
+            
+            # Update credit sale status
+            new_status = "paid" if total_paid >= credit_sale_amount else "partially_paid"
+            
+            db.table("credit_sales").update({
+                "status": new_status,
+            }).eq("id", payload.credit_sale_id).execute()
+            
+            logger.info(f"Payment applied to credit sale: credit_sale_id={payload.credit_sale_id}, status={new_status}, total_paid={total_paid}, amount={credit_sale_amount}")
+    
+    else:
+        # Apply to oldest outstanding invoices (FIFO)
+        outstanding_sales_result = (
+            db.table("credit_sales")
+            .select("*")
+            .eq("customer_id", payload.customer_id)
+            .in_("status", ["pending", "partially_paid", "overdue"])
+            .order("due_date", desc=False)
+            .execute()
+        )
+        
+        for credit_sale in outstanding_sales_result.data:
+            if remaining_payment <= 0:
+                break
+            
+            credit_sale_id = credit_sale["id"]
+            credit_sale_amount = Decimal(str(credit_sale.get("amount", 0)))
+            
+            # Get total payments already made to this credit sale
+            existing_payments_result = (
+                db.table("payments")
+                .select("amount")
+                .eq("credit_sale_id", credit_sale_id)
+                .execute()
+            )
+            
+            total_paid = sum(Decimal(str(p["amount"])) for p in existing_payments_result.data)
+            amount_due = credit_sale_amount - total_paid
+            
+            if amount_due > 0:
+                # Apply payment to this credit sale
+                payment_to_apply = min(remaining_payment, amount_due)
+                
+                if payment_to_apply > 0:
+                    total_paid += payment_to_apply
+                    remaining_payment -= payment_to_apply
+                    
+                    # Update credit sale status
+                    new_status = "paid" if total_paid >= credit_sale_amount else "partially_paid"
+                    
+                    db.table("credit_sales").update({
+                        "status": new_status,
+                    }).eq("id", credit_sale_id).execute()
+                    
+                    logger.info(f"Payment applied to credit sale (FIFO): credit_sale_id={credit_sale_id}, applied={payment_to_apply}, status={new_status}")
+    
+    # Invalidate caches
+    await invalidate(f"payments:list*")
+    await invalidate(f"payments:customer:{payload.customer_id}*")
+    await invalidate(f"customers:detail:{payload.customer_id}")
+    await invalidate(f"customers:list*")
+    await invalidate(f"credit_sales:list*")
+    await invalidate(f"credit_sales:customer:{payload.customer_id}*")
+    
+    response_data = {
+        "success": True,
+        "data": payment_result.data[0],
+        "message": "Payment recorded successfully"
+    }
+    
+    # Add warning for overpayment
+    if new_balance < 0:
+        response_data["warning"] = f"Overpayment of ₱{abs(new_balance):.2f}. Customer now has a credit balance."
+    
+    return response_data
