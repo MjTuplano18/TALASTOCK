@@ -166,7 +166,7 @@ function SaleExpandedRow({ sale }: { sale: Sale }) {
 }
 
 export default function SalesPage() {
-  const { allSales, loading, error, createSale, refetch } = useSales()
+  const { allSales, setAllSales, loading, error, createSale, refetch } = useSales()
   const { allProducts } = useProducts()
   const [mounted, setMounted] = useState(false)
   const [saleFormOpen, setSaleFormOpen] = useState(false)
@@ -409,10 +409,24 @@ export default function SalesPage() {
       const response = await processSaleRefund(refundRequest, user.id)
       
       if (response.success) {
+        // Update the sale in local state IMMEDIATELY for instant UI update
+        setAllSales(prev => prev.map(sale => 
+          sale.id === refundTarget.id 
+            ? { 
+                ...sale, 
+                status: response.new_status, 
+                refunded_amount: response.refunded_amount,
+                refund_reason: refundRequest.refund_reason || null,
+                refunded_at: new Date().toISOString(),
+              }
+            : sale
+        ))
+        
         // Invalidate all related caches
         if (typeof window !== 'undefined') {
           localStorage.removeItem('talastock_cache_sales')
           localStorage.removeItem('talastock_cache_inventory')
+          localStorage.removeItem('talastock_cache_customers')
           localStorage.removeItem('talastock_ai_talastock:ai:insight')
           localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
         }
@@ -421,7 +435,7 @@ export default function SalesPage() {
         setRefundModalOpen(false)
         setRefundTarget(null)
         
-        // Force refetch to update UI
+        // Force refetch in background to ensure data is fresh
         await refetch()
       } else {
         toast.error(response.message)

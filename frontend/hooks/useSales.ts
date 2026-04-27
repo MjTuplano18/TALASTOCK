@@ -67,6 +67,7 @@ export function useSales() {
   return {
     sales,
     allSales,
+    setAllSales, // Expose setAllSales for immediate updates
     loading,
     error,
     page,
