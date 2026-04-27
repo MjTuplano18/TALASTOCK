@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
-import type { ChartConfig } from '@/components/ui/chart'
+import { supabase } from '@/lib/supabase'
 
 type DateRange = '7d' | '30d' | '3m' | '6m'
 
@@ -17,23 +16,42 @@ interface ChartData {
   amount: number
 }
 
-const chartConfig = {
-  amount: {
-    label: 'Payments',
-    color: '#E8896A',
-  },
-} satisfies ChartConfig
-
 export function PaymentCollectionChart({ dateRange }: PaymentCollectionChartProps) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ChartData[]>([])
 
   useEffect(() => {
-    // The aggregate=daily endpoint is not yet implemented on the backend.
-    // Show empty state until it's available.
-    setLoading(false)
-    setData([])
+    fetchData()
   }, [dateRange])
+
+  async function fetchData() {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/payments/trend?range=${dateRange}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      )
+
+      if (!response.ok) throw new Error('Failed to fetch payment trend')
+
+      const result = await response.json()
+      const trendData = result.data || []
+      
+      setData(trendData)
+    } catch (error) {
+      console.error('Failed to fetch payment trend:', error)
+      setData([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return <ChartSkeleton />
@@ -48,17 +66,15 @@ export function PaymentCollectionChart({ dateRange }: PaymentCollectionChartProp
   }
 
   return (
-    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+    <ResponsiveContainer width="100%" height={250}>
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#F2C4B0" />
         <XAxis dataKey="date" stroke="#B89080" fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke="#B89080" fontSize={12} tickLine={false} axisLine={false}
           tickFormatter={(value) => `₱${value.toLocaleString()}`} />
-        <ChartTooltip content={<ChartTooltipContent />}
-          formatter={(value: number) => [`₱${value.toLocaleString()}`, 'Payments']} />
         <Bar dataKey="amount" fill="#E8896A" radius={[4, 4, 0, 0]} />
       </BarChart>
-    </ChartContainer>
+    </ResponsiveContainer>
   )
 }
 

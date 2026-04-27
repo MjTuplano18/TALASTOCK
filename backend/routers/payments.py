@@ -4,7 +4,7 @@ from database.supabase import get_supabase
 from dependencies.auth import verify_token
 from models.schemas import PaymentCreate, PaymentResponse
 from lib.cache import get_cached, set_cached, invalidate
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 import logging
 
@@ -18,6 +18,50 @@ logger = logging.getLogger(__name__)
 
 def get_cache_key(suffix: str = "list") -> str:
     return f"{CACHE_KEY_PREFIX}:{suffix}"
+
+
+def _range_to_days(range_str: str) -> int:
+    """Convert range string to number of days."""
+    mapping = {"7d": 7, "30d": 30, "3m": 90, "6m": 180}
+    return mapping.get(range_str, 30)
+
+
+@router.get("/trend")
+async def get_payments_trend(
+    range: str = Query("30d", description="Date range: 7d, 30d, 3m, 6m"),
+    user=Depends(verify_token)
+):
+    """
+    Get payment collection trend grouped by date.
+    
+    Returns daily aggregated payments for the specified date range.
+    """
+    db = get_supabase()
+    
+    # Calculate date range
+    days = _range_to_days(range)
+    start_date = (datetime.utcnow() - timedelta(days=days)).date()
+    
+    # Query payments
+    result = db.table("payments").select("payment_date, amount").gte(
+        "payment_date", start_date.isoformat()
+    ).execute()
+    
+    # Group by date
+    daily_payments: dict[str, float] = {}
+    for payment in result.data:
+        payment_date = payment["payment_date"]
+        if payment_date not in daily_payments:
+            daily_payments[payment_date] = 0
+        daily_payments[payment_date] += float(payment["amount"])
+    
+    # Convert to list and sort
+    trend_data = [
+        {"date": date_str, "amount": round(amount, 2)}
+        for date_str, amount in sorted(daily_payments.items())
+    ]
+    
+    return {"success": True, "data": trend_data, "message": "OK"}
 
 
 @router.post("/", status_code=201)

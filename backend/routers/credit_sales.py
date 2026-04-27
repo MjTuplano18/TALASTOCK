@@ -20,6 +20,50 @@ def get_cache_key(suffix: str = "list") -> str:
     return f"{CACHE_KEY_PREFIX}:{suffix}"
 
 
+def _range_to_days(range_str: str) -> int:
+    """Convert range string to number of days."""
+    mapping = {"7d": 7, "30d": 30, "3m": 90, "6m": 180}
+    return mapping.get(range_str, 30)
+
+
+@router.get("/trend")
+async def get_credit_sales_trend(
+    range: str = Query("30d", description="Date range: 7d, 30d, 3m, 6m"),
+    user=Depends(verify_token)
+):
+    """
+    Get credit sales trend grouped by date.
+    
+    Returns daily aggregated credit sales for the specified date range.
+    """
+    db = get_supabase()
+    
+    # Calculate date range
+    days = _range_to_days(range)
+    start_date = (datetime.utcnow() - timedelta(days=days)).date()
+    
+    # Query credit sales
+    result = db.table("credit_sales").select("created_at, amount").gte(
+        "created_at", start_date.isoformat()
+    ).execute()
+    
+    # Group by date
+    daily_sales: dict[str, float] = {}
+    for sale in result.data:
+        sale_date = sale["created_at"][:10]  # Extract YYYY-MM-DD
+        if sale_date not in daily_sales:
+            daily_sales[sale_date] = 0
+        daily_sales[sale_date] += float(sale["amount"])
+    
+    # Convert to list and sort
+    trend_data = [
+        {"date": date, "amount": round(amount, 2)}
+        for date, amount in sorted(daily_sales.items())
+    ]
+    
+    return {"success": True, "data": trend_data, "message": "OK"}
+
+
 @router.post("", status_code=201)
 async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_token)):
     """

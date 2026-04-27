@@ -34,7 +34,7 @@ export function CreditUtilizationChart() {
 
       if (error) throw error
 
-      // Calculate utilization and filter >50%
+      // Calculate utilization and filter >0% (show all customers with any balance)
       const chartData = customers
         .map(c => ({
           name: c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name,
@@ -42,7 +42,7 @@ export function CreditUtilizationChart() {
           balance: c.current_balance,
           limit: c.credit_limit,
         }))
-        .filter(c => c.utilization > 50)
+        .filter(c => c.utilization > 0) // Show all customers with any balance
         .slice(0, 8) // Show top 8
 
       setData(chartData)
@@ -61,7 +61,7 @@ export function CreditUtilizationChart() {
   if (data.length === 0) {
     return (
       <div className="h-[250px] flex items-center justify-center">
-        <p className="text-xs text-[#B89080]">No customers using >50% of credit limit</p>
+        <p className="text-xs text-[#B89080]">No customers with credit balance</p>
       </div>
     )
   }
