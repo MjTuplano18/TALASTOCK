@@ -43,14 +43,11 @@ app = FastAPI(
 
 # ─── Middleware (order matters — first added = outermost) ─────────────────────
 
-# 1. Structured logging (outermost — logs everything)
-app.add_middleware(StructuredLoggingMiddleware)
+# 1. CORS (MUST be first to handle preflight requests)
+origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+origins = [origin.strip() for origin in origins_str.split(",")]
+logger.info(f"CORS origins configured: {origins}")
 
-# 2. Rate limiting
-app.add_middleware(RateLimitMiddleware)
-
-# 3. CORS
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -60,6 +57,12 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=600,
 )
+
+# 2. Structured logging
+app.add_middleware(StructuredLoggingMiddleware)
+
+# 3. Rate limiting (after CORS to avoid blocking preflight requests)
+app.add_middleware(RateLimitMiddleware)
 
 # ─── Request body size limit ──────────────────────────────────────────────────
 MAX_BODY_SIZE = 1_000_000  # 1MB
