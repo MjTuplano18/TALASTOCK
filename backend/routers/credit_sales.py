@@ -72,7 +72,7 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
             )
         else:
             # Log override for audit
-            logger.warning(f"Credit limit override: customer_id={payload.customer_id}, user_id={user.id}, amount={payload.amount}, new_balance={new_balance}, limit={credit_limit}")
+            logger.warning(f"Credit limit override: customer_id={payload.customer_id}, user_id={user['id']}, amount={payload.amount}, new_balance={new_balance}, limit={credit_limit}")
             warning_message = f"Credit limit override applied. New balance (₱{new_balance}) exceeds limit (₱{credit_limit})."
     
     # Check if near credit limit (>80%)
@@ -92,7 +92,7 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
         "due_date": due_date.isoformat(),
         "status": "pending",
         "notes": payload.notes,
-        "created_by": user.id,
+        "created_by": user["id"],
     }
     
     credit_sale_result = db.table("credit_sales").insert(credit_sale_data).execute()
@@ -115,7 +115,7 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
             "new_balance": float(new_balance),
             "credit_limit": float(credit_limit),
             "override_reason": payload.notes,
-            "created_by": user.id,
+            "created_by": user["id"],
         }
         
         try:

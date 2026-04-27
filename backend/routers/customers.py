@@ -250,7 +250,7 @@ async def create_customer(payload: CustomerCreate, user=Depends(verify_token)):
         "notes": payload.notes,
         "current_balance": 0,
         "is_active": True,
-        "created_by": user.id,
+        "created_by": user["id"],
     }
     
     result = db.table("customers").insert(customer_data).execute()

@@ -68,7 +68,7 @@ async def record_payment(payload: PaymentCreate, user=Depends(verify_token)):
         "payment_method": payload.payment_method,
         "payment_date": payment_date_str,
         "notes": payload.notes,
-        "created_by": user.id,
+        "created_by": user["id"],
     }
     
     payment_result = db.table("payments").insert(payment_data).execute()
