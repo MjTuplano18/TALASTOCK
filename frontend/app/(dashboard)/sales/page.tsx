@@ -55,6 +55,7 @@ function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
     gcash: { label: 'GCash', bg: '#E3F2FD', color: '#1565C0' },
     paymaya: { label: 'PayMaya', bg: '#F3E5F5', color: '#6A1B9A' },
     bank_transfer: { label: 'Bank Transfer', bg: '#FFF3E0', color: '#E65100' },
+    credit: { label: 'Credit', bg: '#FDECEA', color: '#C05050' },
   }
   
   const style = config[method] || config.cash
@@ -167,6 +168,7 @@ function SaleExpandedRow({ sale }: { sale: Sale }) {
 export default function SalesPage() {
   const { allSales, loading, error, createSale, refetch } = useSales()
   const { allProducts } = useProducts()
+  const [mounted, setMounted] = useState(false)
   const [saleFormOpen, setSaleFormOpen] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -179,6 +181,11 @@ export default function SalesPage() {
   const [refundModalOpen, setRefundModalOpen] = useState(false)
   const [refundTarget, setRefundTarget] = useState<Sale | null>(null)
   const [refunding, setRefunding] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Fetch products for import
   useEffect(() => {
@@ -238,13 +245,23 @@ export default function SalesPage() {
       await supabase.from('sale_items').delete().eq('sale_id', voidTarget.id)
       const { error } = await supabase.from('sales').delete().eq('id', voidTarget.id)
       if (error) throw error
+      
+      // Invalidate cache
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('talastock_cache_sales')
+      }
+      
+      // Close dialog first
+      setVoidTarget(null)
+      
+      // Show success and refetch
       toast.success('Sale voided successfully')
       await refetch()
-    } catch {
+    } catch (err) {
+      console.error('Void error:', err)
       toast.error('Failed to void sale')
     } finally {
       setVoiding(false)
-      setVoidTarget(null)
     }
   }
 
@@ -403,6 +420,7 @@ export default function SalesPage() {
             { label: 'GCash', value: 'gcash' },
             { label: 'PayMaya', value: 'paymaya' },
             { label: 'Bank Transfer', value: 'bank_transfer' },
+            { label: 'Credit', value: 'credit' },
           ]} 
         />
         <FilterSelect 
@@ -431,7 +449,7 @@ export default function SalesPage() {
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-[#B89080]">
+          <span className="text-xs text-[#B89080]" suppressHydrationWarning>
             {filtered.length} sales · {formatCurrency(totalFiltered)}
           </span>
           <ImportButton onClick={() => setImportModalOpen(true)} />
@@ -444,7 +462,7 @@ export default function SalesPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-[#F2C4B0] overflow-hidden">
-        {loading ? (
+        {!mounted || loading ? (
           <div className="flex flex-col gap-3 p-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full rounded-md bg-[#FDE8DF]" />

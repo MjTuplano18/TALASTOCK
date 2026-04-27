@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Category, Product, ProductCreate, ProductUpdate, InventoryItem, StockMovement, Sale, SaleCreate } from '@/types'
+import type { Category, Product, ProductCreate, ProductUpdate, InventoryItem, StockMovement, Sale, SaleCreate, Customer, CustomerCreate, CustomerUpdate, CreditSale, Payment } from '@/types'
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
@@ -166,6 +166,11 @@ export async function getSales(): Promise<Sale[]> {
 }
 
 export async function createSale(data: SaleCreate, userId: string): Promise<Sale> {
+  // For credit sales, call the backend API instead
+  if (data.customer_id) {
+    return await createCreditSale(data, userId)
+  }
+
   // 1. Check inventory for each item
   for (const item of data.items) {
     const { data: inv, error: invError } = await supabase
@@ -265,6 +270,166 @@ export async function createSale(data: SaleCreate, userId: string): Promise<Sale
 
       if (updateErr) throw new Error(updateErr.message)
     }
+  }
+
+  return sale as Sale
+}
+
+// Helper function to create credit sale via backend API
+async function createCreditSale(data: SaleCreate, userId: string): Promise<Sale> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+
+  // 1. Check inventory for each item
+  for (const item of data.items) {
+    const { data: inv, error: invError } = await supabase
+      .from('inventory')
+      .select('quantity, products(name)')
+      .eq('product_id', item.product_id)
+      .single()
+
+    if (invError) throw new Error(invError.message)
+
+    const inventoryRow = inv as unknown as { quantity: number; products: { name: string } | null }
+    if (inventoryRow.quantity < item.quantity) {
+      const productName = inventoryRow.products?.name ?? item.product_id
+      throw new Error(`Insufficient stock for: ${productName}`)
+    }
+  }
+
+  // 2. Calculate total
+  const totalAmount = data.items.reduce(
+    (sum, item) => sum + item.quantity * item.unit_price,
+    0
+  )
+
+  // 3. Create regular sale first
+  const saleData: any = {
+    total_amount: totalAmount,
+    notes: data.notes ?? null,
+    created_by: userId,
+    payment_method: 'credit',
+  }
+
+  const { data: sale, error: saleError } = await supabase
+    .from('sales')
+    .insert(saleData)
+    .select('id, total_amount, notes, created_by, created_at, payment_method')
+    .single()
+
+  if (saleError) throw new Error(saleError.message)
+
+  // 4. Insert sale items
+  const saleItems = data.items.map(item => ({
+    sale_id: sale.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+  }))
+
+  const { error: itemsError } = await supabase.from('sale_items').insert(saleItems)
+  if (itemsError) throw new Error(itemsError.message)
+
+  // 5. Insert stock movements and decrease inventory for each item
+  for (const item of data.items) {
+    const { error: movError } = await supabase.from('stock_movements').insert({
+      product_id: item.product_id,
+      type: 'sale',
+      quantity: item.quantity,
+      note: `Credit Sale ${sale.id}`,
+      created_by: userId,
+    })
+    if (movError) throw new Error(movError.message)
+
+    const { error: decError } = await supabase.rpc('decrement_inventory', {
+      p_product_id: item.product_id,
+      p_quantity: item.quantity,
+    })
+
+    // Fallback if RPC not available: manual decrement
+    if (decError) {
+      const { data: current, error: fetchErr } = await supabase
+        .from('inventory')
+        .select('quantity')
+        .eq('product_id', item.product_id)
+        .single()
+
+      if (fetchErr) throw new Error(fetchErr.message)
+
+      const { error: updateErr } = await supabase
+        .from('inventory')
+        .update({
+          quantity: (current as { quantity: number }).quantity - item.quantity,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('product_id', item.product_id)
+
+      if (updateErr) throw new Error(updateErr.message)
+    }
+  }
+
+  // 6. Create credit sale record via backend API (direct call with CORS)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  console.log('[Credit Sale] Calling backend API:', `${apiUrl}/api/v1/credit-sales`)
+  console.log('[Credit Sale] Request payload:', {
+    customer_id: data.customer_id,
+    sale_id: sale.id,
+    amount: totalAmount,
+    notes: data.notes,
+    override_credit_limit: data.override_credit_limit || false,
+  })
+  console.log('[Credit Sale] Auth token:', session.access_token ? 'Present' : 'Missing')
+  
+  try {
+    const response = await fetch(`${apiUrl}/api/v1/credit-sales`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        customer_id: data.customer_id,
+        sale_id: sale.id,
+        amount: totalAmount,
+        notes: data.notes,
+        override_credit_limit: data.override_credit_limit || false,
+      }),
+    })
+
+    console.log('[Credit Sale] Response status:', response.status)
+    console.log('[Credit Sale] Response headers:', Object.fromEntries(response.headers.entries()))
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Credit Sale] Error response text:', errorText)
+      try {
+        const errorData = JSON.parse(errorText)
+        console.error('[Credit Sale] Error response JSON:', JSON.stringify(errorData, null, 2))
+        throw new Error(errorData.detail || JSON.stringify(errorData) || 'Failed to create credit sale')
+      } catch (parseError) {
+        console.error('[Credit Sale] Could not parse error response as JSON')
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
+    }
+
+    const creditSaleResponse = await response.json()
+    console.log('[Credit Sale] Success:', creditSaleResponse)
+    
+    // Show warning if present
+    if (creditSaleResponse.warning) {
+      console.warn('[Credit Sale] Warning:', creditSaleResponse.warning)
+    }
+    
+    // Invalidate customer cache so balance updates are reflected
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('talastock_cache_customers')
+    }
+  } catch (error) {
+    console.error('[Credit Sale] Failed to create credit sale record:', error)
+    console.error('[Credit Sale] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    // Don't throw - sale was already created, just log the error
+    // The sale will show as credit but won't have a credit_sales record
+    throw error  // Actually throw so we can see the error in the UI
   }
 
   return sale as Sale
@@ -717,4 +882,95 @@ export async function getDeadStock(startDate?: string, endDate?: string): Promis
   }
 
   return dead.sort((a, b) => (b.days_since_last_sale ?? 999) - (a.days_since_last_sale ?? 999))
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────────
+
+export async function getCustomers(): Promise<Customer[]> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .order('name', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+export async function getCustomer(id: string): Promise<Customer> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function createCustomer(customer: CustomerCreate): Promise<Customer> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('customers')
+    .insert({ ...customer, created_by: session.user.id })
+    .select('*')
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function updateCustomer(id: string, customer: CustomerUpdate): Promise<Customer> {
+  const { data, error } = await supabase
+    .from('customers')
+    .update(customer)
+    .eq('id', id)
+    .select('*')
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function deleteCustomer(id: string): Promise<void> {
+  // Soft delete - mark as inactive
+  const { error } = await supabase
+    .from('customers')
+    .update({ is_active: false })
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function getCreditSales(customerId?: string): Promise<CreditSale[]> {
+  let query = supabase
+    .from('credit_sales')
+    .select('*, customers(id, name, business_name), sales(id, total_amount, created_at)')
+    .order('created_at', { ascending: false })
+
+  if (customerId) {
+    query = query.eq('customer_id', customerId)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+export async function getPayments(customerId?: string): Promise<Payment[]> {
+  let query = supabase
+    .from('payments')
+    .select('*, customers(id, name), credit_sales(id, amount)')
+    .order('payment_date', { ascending: false })
+
+  if (customerId) {
+    query = query.eq('customer_id', customerId)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw new Error(error.message)
+  return data ?? []
 }

@@ -43,7 +43,7 @@ export default function CategoriesPage() {
       <div className="flex items-center gap-2 mb-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Search categories…" />
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-[#B89080]">{filtered.length} categories</span>
+          <span className="text-xs text-[#B89080]" suppressHydrationWarning>{filtered.length} categories</span>
           <button onClick={() => setFormOpen(true)}
             className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs transition-colors whitespace-nowrap">
             <Plus className="w-3.5 h-3.5" />

@@ -24,6 +24,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   gcash: 'GCash',
   paymaya: 'PayMaya',
   bank_transfer: 'Bank Transfer',
+  credit: 'Credit',
 }
 
 const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
@@ -32,6 +33,7 @@ const PAYMENT_METHOD_COLORS: Record<PaymentMethod, string> = {
   gcash: '#B89080',     // ts-muted
   paymaya: '#F2C4B0',   // ts-border
   bank_transfer: '#7A3E2E', // ts-text
+  credit: '#FDE8DF',    // ts-soft
 }
 
 export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
@@ -45,6 +47,7 @@ export function PaymentMethodsChart({ data }: PaymentMethodsChartProps) {
       gcash: { count: 0, total: 0 },
       paymaya: { count: 0, total: 0 },
       bank_transfer: { count: 0, total: 0 },
+      credit: { count: 0, total: 0 },
     }
 
     let totalRevenue = 0

@@ -1,7 +1,7 @@
 # Talastock Database Schema Reference
 
-**Version:** 1.0  
-**Last Updated:** 2026-04-15  
+**Version:** 1.1  
+**Last Updated:** 2026-04-16  
 **Database:** PostgreSQL (Supabase)
 
 ---
@@ -195,6 +195,137 @@ This file contains:
 
 ---
 
+## 💳 Customer Credit Management Tables
+
+### 8. customers
+**Purpose:** Customer profiles with credit accounts for tracking "utang"
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PRIMARY KEY | Unique identifier |
+| name | TEXT | NOT NULL | Customer full name |
+| contact_number | TEXT | NULL | Customer contact number |
+| address | TEXT | NULL | Customer address |
+| business_name | TEXT | NULL | Customer business name |
+| credit_limit | NUMERIC(10,2) | NOT NULL, DEFAULT 0, CHECK ≥ 0 | Maximum credit allowed |
+| current_balance | NUMERIC(10,2) | NOT NULL, DEFAULT 0, CHECK ≥ 0 | Current outstanding balance |
+| payment_terms_days | INTEGER | NOT NULL, DEFAULT 30, CHECK > 0 | Payment terms in days |
+| is_active | BOOLEAN | DEFAULT TRUE | Active status |
+| notes | TEXT | NULL | Additional notes |
+| created_by | UUID | FK → auth.users | User who created |
+| created_at | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+| updated_at | TIMESTAMPTZ | DEFAULT NOW() | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Index on `name`
+- Index on `is_active`
+- Index on `created_by`
+- Index on `created_at DESC`
+
+**Triggers:**
+- `trigger_customers_updated_at` - Auto-updates `updated_at`
+- `trigger_update_balance_on_credit_sale` - Updates balance on credit sale changes
+- `trigger_update_balance_on_payment` - Updates balance on payment changes
+
+---
+
+### 9. credit_sales
+**Purpose:** Credit sales transactions linked to customers
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PRIMARY KEY | Unique identifier |
+| customer_id | UUID | NOT NULL, FK → customers | Customer reference |
+| sale_id | UUID | FK → sales | Optional link to sales table |
+| amount | NUMERIC(10,2) | NOT NULL, CHECK > 0 | Credit sale amount |
+| due_date | DATE | NOT NULL | Payment due date |
+| status | TEXT | NOT NULL, DEFAULT 'pending' | Payment status |
+| notes | TEXT | NULL | Optional notes |
+| created_by | UUID | FK → auth.users | User who created |
+| created_at | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+
+**Valid Statuses:**
+- `pending` - No payments yet
+- `paid` - Fully paid
+- `overdue` - Past due date and not paid
+- `partially_paid` - Some payment received
+
+**Indexes:**
+- Primary key on `id`
+- Index on `customer_id`
+- Index on `sale_id`
+- Index on `status`
+- Index on `due_date`
+- Index on `created_at DESC`
+- Index on `created_by`
+
+**Triggers:**
+- `trigger_update_balance_on_credit_sale` - Updates customer balance
+- `trigger_update_credit_sale_status_on_payment` - Updates status based on payments
+
+---
+
+### 10. payments
+**Purpose:** Customer payment records against credit balances
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PRIMARY KEY | Unique identifier |
+| customer_id | UUID | NOT NULL, FK → customers | Customer reference |
+| credit_sale_id | UUID | FK → credit_sales | Optional link to specific invoice |
+| amount | NUMERIC(10,2) | NOT NULL, CHECK > 0 | Payment amount |
+| payment_method | TEXT | NOT NULL, DEFAULT 'cash' | Payment method |
+| payment_date | DATE | NOT NULL, DEFAULT CURRENT_DATE | Payment date |
+| notes | TEXT | NULL | Optional notes |
+| created_by | UUID | FK → auth.users | User who created |
+| created_at | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+
+**Valid Payment Methods:**
+- `cash` - Cash payment
+- `bank_transfer` - Bank transfer
+- `gcash` - GCash payment
+- `paymaya` - PayMaya payment
+- `other` - Other payment method
+
+**Indexes:**
+- Primary key on `id`
+- Index on `customer_id`
+- Index on `credit_sale_id`
+- Index on `payment_date DESC`
+- Index on `payment_method`
+- Index on `created_by`
+
+**Triggers:**
+- `trigger_update_balance_on_payment` - Updates customer balance
+- `trigger_update_credit_sale_status_on_payment` - Updates credit sale status
+
+---
+
+### 11. credit_limit_overrides
+**Purpose:** Audit log for credit limit override events
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | UUID | PRIMARY KEY | Unique identifier |
+| customer_id | UUID | NOT NULL, FK → customers | Customer reference |
+| credit_sale_id | UUID | NOT NULL, FK → credit_sales | Credit sale reference |
+| previous_balance | NUMERIC(10,2) | NOT NULL | Balance before sale |
+| sale_amount | NUMERIC(10,2) | NOT NULL | Amount of credit sale |
+| new_balance | NUMERIC(10,2) | NOT NULL | Balance after sale |
+| credit_limit | NUMERIC(10,2) | NOT NULL | Credit limit at time |
+| override_reason | TEXT | NULL | Reason for override |
+| created_by | UUID | FK → auth.users | User who approved |
+| created_at | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Index on `customer_id`
+- Index on `credit_sale_id`
+- Index on `created_at DESC`
+
+---
+
 ## 🔍 Useful Views
 
 ### products_with_inventory
@@ -242,6 +373,70 @@ SELECT * FROM low_stock_products;
 
 ---
 
+### customer_balances
+Complete customer balance information with credit sales and payment summaries
+
+```sql
+SELECT * FROM customer_balances;
+```
+
+**Columns:**
+- All customer columns
+- `available_credit` - Credit limit minus current balance
+- `total_credit_sales` - Sum of all credit sales
+- `total_payments` - Sum of all payments
+- `pending_amount` - Amount in pending status
+- `overdue_amount` - Amount in overdue status
+
+---
+
+### overdue_accounts
+List of overdue credit sales with customer information
+
+```sql
+SELECT * FROM overdue_accounts;
+```
+
+**Columns:**
+- `customer_id`, `customer_name`, `contact_number`, `business_name`
+- `credit_sale_id`, `sale_amount`, `due_date`
+- `days_overdue` - Days past due date
+- `status`, `amount_paid`, `amount_due`
+- `sale_date`
+
+---
+
+### customers_near_limit
+Customers who have used 80% or more of their credit limit
+
+```sql
+SELECT * FROM customers_near_limit;
+```
+
+**Columns:**
+- `id`, `name`, `contact_number`, `business_name`
+- `credit_limit`, `current_balance`, `available_credit`
+- `utilization_percentage` - Percentage of credit limit used
+- `is_active`
+
+---
+
+### credit_sales_with_details
+Credit sales with customer details and payment information
+
+```sql
+SELECT * FROM credit_sales_with_details;
+```
+
+**Columns:**
+- All credit_sales columns
+- `customer_name`, `business_name`
+- `amount_paid` - Total payments received
+- `amount_remaining` - Amount still owed
+- `days_overdue` - Days past due (0 if not overdue)
+
+---
+
 ## 🔧 Helper Functions
 
 ### get_stock_status(product_id)
@@ -260,6 +455,26 @@ Calculates total inventory value based on cost price
 ```sql
 SELECT get_inventory_value();
 -- Returns: Total inventory value (NUMERIC)
+```
+
+---
+
+### calculate_customer_balance(customer_id)
+Calculates current balance for a customer
+
+```sql
+SELECT calculate_customer_balance('customer-uuid-here');
+-- Returns: Current balance (total credit sales - total payments)
+```
+
+---
+
+### check_overdue_credit_sales()
+Updates credit sale status to overdue for sales past due date
+
+```sql
+SELECT check_overdue_credit_sales();
+-- Run daily via cron job
 ```
 
 ---
@@ -346,6 +561,45 @@ ORDER BY total_sold DESC
 LIMIT 10;
 ```
 
+### Get customer balance summary
+```sql
+SELECT * FROM customer_balances
+WHERE is_active = true
+ORDER BY current_balance DESC;
+```
+
+### Get overdue accounts
+```sql
+SELECT * FROM overdue_accounts
+ORDER BY days_overdue DESC;
+```
+
+### Get customers near credit limit
+```sql
+SELECT * FROM customers_near_limit
+ORDER BY utilization_percentage DESC;
+```
+
+### Get customer statement
+```sql
+-- Credit sales for a customer
+SELECT * FROM credit_sales_with_details
+WHERE customer_id = 'customer-uuid-here'
+ORDER BY created_at DESC;
+
+-- Payments for a customer
+SELECT * FROM payments
+WHERE customer_id = 'customer-uuid-here'
+ORDER BY payment_date DESC;
+```
+
+### Get total credit outstanding
+```sql
+SELECT SUM(current_balance) AS total_outstanding
+FROM customers
+WHERE is_active = true;
+```
+
 ---
 
 ## 📝 Migration Files
@@ -361,6 +615,15 @@ LIMIT 10;
    - Creates import_history table
    - Required for v2 features (history, rollback)
    - Location: `docs/database/migrations/`
+
+3. **create_customer_credit_management_schema.sql**
+   - Creates complete customer credit management schema
+   - Tables: customers, credit_sales, payments, credit_limit_overrides
+   - Views: customer_balances, overdue_accounts, customers_near_limit, credit_sales_with_details
+   - Functions: calculate_customer_balance, check_overdue_credit_sales
+   - Triggers: Automatic balance updates and status tracking
+   - Location: `database/migrations/`
+   - Documentation: `database/migrations/CREDIT_MANAGEMENT_MIGRATION_README.md`
 
 ---
 
@@ -431,6 +694,12 @@ sales
 import_history (v2)
     ↓ (1:N)
 stock_movements
+
+customers
+    ↓ (1:N)        ↓ (1:N)
+credit_sales   payments
+    ↑ (N:1)
+    └─ credit_limit_overrides (audit)
 ```
 
 ---
@@ -457,6 +726,6 @@ stock_movements
 
 ---
 
-**Last Updated:** 2026-04-15  
+**Last Updated:** 2026-04-16  
 **Maintained By:** Talastock Development Team
 

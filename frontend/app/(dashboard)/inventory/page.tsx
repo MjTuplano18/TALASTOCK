@@ -214,7 +214,7 @@ export default function InventoryPage() {
             className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-[#B89080]">{filtered.length} of {inventory.length} items</span>
+          <span className="text-xs text-[#B89080]" suppressHydrationWarning>{filtered.length} of {inventory.length} items</span>
           <ImportButton onClick={() => setImportModalOpen(true)} />
           <ExportDropdown 
             onExportExcel={() => exportInventoryToExcel(filtered)}

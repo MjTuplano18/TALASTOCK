@@ -144,7 +144,7 @@ export default function ProductsPage() {
         </div>
         {hasFilters && <button onClick={clearFilters} className="text-xs text-[#B89080] hover:text-[#7A3E2E] underline">Clear filters</button>}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-[#B89080]">{filtered.length} of {allProducts.length} products</span>
+          <span className="text-xs text-[#B89080]" suppressHydrationWarning>{filtered.length} of {allProducts.length} products</span>
           <ImportButton onClick={() => setImportOpen(true)} className="hidden sm:flex" />
           <ExportDropdown 
             onExportExcel={handleExportExcel}

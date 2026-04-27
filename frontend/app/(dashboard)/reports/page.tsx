@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Download, Package, TrendingUp, DollarSign } from 'lucide-react'
+import { Download, Package, TrendingUp, DollarSign, CreditCard } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { useRealtimeInventory } from '@/hooks/useRealtimeInventory'
 import { useProducts } from '@/hooks/useProducts'
@@ -13,6 +13,9 @@ import { getStockStatus } from '@/types'
 import { DateRangePicker, type DateRange } from '@/components/shared/DateRangePicker'
 import { FilterSelect } from '@/components/shared/FilterSelect'
 import { AiReportSummary } from '@/components/reports/AiReportSummary'
+import { CustomerStatementReport } from '@/components/credit/reports/CustomerStatementReport'
+import { AgingReport } from '@/components/credit/reports/AgingReport'
+import { CreditSummaryReport } from '@/components/credit/reports/CreditSummaryReport'
 
 // ─── Summary card ─────────────────────────────────────────────────────────────
 function SummaryCard({ label, value, sub, icon, danger }: {
@@ -90,6 +93,10 @@ export default function ReportsPage() {
   const { inventory, loading: inventoryLoading } = useRealtimeInventory()
   const { allProducts, loading: productsLoading } = useProducts()
   const { categories } = useCategories()
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'sales' | 'credit'>('sales')
+  const [activeCreditTab, setActiveCreditTab] = useState<'statement' | 'aging' | 'summary'>('statement')
 
   const [salesDateRange, setSalesDateRange] = useState<DateRange>({ from: null, to: null })
   const [exportingSales, setExportingSales] = useState(false)
@@ -295,8 +302,36 @@ export default function ReportsPage() {
         <h1 className="text-lg font-bold text-[#7A3E2E]">Reports</h1>
       </div>
 
-      {/* ── Report cards ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {/* ── Tab Navigation ── */}
+      <div className="bg-white rounded-xl border border-[#F2C4B0] p-1 flex gap-1">
+        <button
+          onClick={() => setActiveTab('sales')}
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === 'sales'
+              ? 'bg-[#E8896A] text-white'
+              : 'text-[#7A3E2E] hover:bg-[#FDE8DF]'
+          }`}
+        >
+          Sales Reports
+        </button>
+        <button
+          onClick={() => setActiveTab('credit')}
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+            activeTab === 'credit'
+              ? 'bg-[#E8896A] text-white'
+              : 'text-[#7A3E2E] hover:bg-[#FDE8DF]'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          Credit Reports
+        </button>
+      </div>
+
+      {/* ── Sales Reports Tab ── */}
+      {activeTab === 'sales' && (
+        <>
+          {/* ── Report cards ── */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Sales Report */}
         <ReportCard
@@ -467,6 +502,52 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
+
+      {/* ── Credit Reports Tab ── */}
+      {activeTab === 'credit' && (
+        <>
+          {/* Credit Reports Sub-tabs */}
+          <div className="bg-white rounded-xl border border-[#F2C4B0] p-1 flex gap-1">
+            <button
+              onClick={() => setActiveCreditTab('statement')}
+              className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
+                activeCreditTab === 'statement'
+                  ? 'bg-[#FDE8DF] text-[#C1614A]'
+                  : 'text-[#7A3E2E] hover:bg-[#FDF6F0]'
+              }`}
+            >
+              Customer Statement
+            </button>
+            <button
+              onClick={() => setActiveCreditTab('aging')}
+              className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
+                activeCreditTab === 'aging'
+                  ? 'bg-[#FDE8DF] text-[#C1614A]'
+                  : 'text-[#7A3E2E] hover:bg-[#FDF6F0]'
+              }`}
+            >
+              Aging Report
+            </button>
+            <button
+              onClick={() => setActiveCreditTab('summary')}
+              className={`flex-1 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors ${
+                activeCreditTab === 'summary'
+                  ? 'bg-[#FDE8DF] text-[#C1614A]'
+                  : 'text-[#7A3E2E] hover:bg-[#FDF6F0]'
+              }`}
+            >
+              Credit Summary
+            </button>
+          </div>
+
+          {/* Credit Report Content */}
+          {activeCreditTab === 'statement' && <CustomerStatementReport />}
+          {activeCreditTab === 'aging' && <AgingReport />}
+          {activeCreditTab === 'summary' && <CreditSummaryReport />}
+        </>
+      )}
     </div>
   )
 }

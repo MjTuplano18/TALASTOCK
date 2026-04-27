@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, Sparkles, Percent, BarChart2 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Package, DollarSign, TrendingUp, AlertTriangle, RefreshCw, ShoppingCart, Download, Sparkles, Percent, BarChart2, Wallet } from 'lucide-react'
 import { useDashboardQuery, type DateRange } from '@/hooks/useDashboardQuery'
 import { useDateRangeQuery } from '@/context/DateRangeContext'
 import { useProducts } from '@/hooks/useProducts'
@@ -21,6 +21,8 @@ import { AiInsightCard } from '@/components/dashboard/AiInsightCard'
 import { SmartReorderCard } from '@/components/dashboard/SmartReorderCard'
 import { AnomalyDetectionCard } from '@/components/dashboard/AnomalyDetectionCard'
 import { DeadStockRecoveryCard } from '@/components/dashboard/DeadStockRecoveryCard'
+import { CreditDashboardTab } from '@/components/credit/CreditDashboardTab'
+import { RecordPaymentTrigger } from '@/components/credit/RecordPaymentTrigger'
 import { SaleForm } from '@/components/forms/SaleForm'
 import { exportDashboardPDF } from '@/lib/export-dashboard'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -48,11 +50,28 @@ function calcChange(current: number, previous?: number): number | null {
   return ((current - previous) / previous) * 100
 }
 
+type TabType = 'overview' | 'credit'
+
 export default function DashboardPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [saleFormOpen, setSaleFormOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  
+  // Tab state management with URL persistence
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const tabParam = searchParams.get('tab')
+    return (tabParam === 'credit' ? 'credit' : 'overview') as TabType
+  })
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    window.history.pushState({}, '', url.toString())
+  }
 
   const { startDate, endDate } = useDateRangeQuery()
 
@@ -117,7 +136,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-2 sm:gap-3">
 
-      {/* Header */}
+      {/* Header with Tabs */}
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -127,13 +146,7 @@ export default function DashboardPage() {
           {/* Action Buttons Row */}
           <div className="flex items-center gap-2 flex-wrap">
             <DateRangeFilter />
-            
-            <button onClick={() => router.push('/pos')}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#E8896A] hover:bg-[#C1614A] text-white text-xs font-medium transition-colors whitespace-nowrap">
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Quick POS</span>
-              <span className="sm:hidden">POS</span>
-            </button>
+
             <button onClick={handleExport} disabled={exporting || loading}
               className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 whitespace-nowrap">
               <Download className="w-3.5 h-3.5" />
@@ -145,16 +158,105 @@ export default function DashboardPage() {
               <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
               <span className="hidden lg:inline">Refresh</span>
             </button>
-            <button onClick={() => setSaleFormOpen(true)}
-              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">Record Sale</span>
-              <span className="lg:hidden">Sale</span>
-            </button>
+
+            {activeTab === 'overview' && (
+              <button onClick={() => setSaleFormOpen(true)}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Record Sale</span>
+                <span className="lg:hidden">Sale</span>
+              </button>
+            )}
+
+            {activeTab === 'credit' && (
+              <button onClick={() => setPaymentOpen(true)}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[#F2C4B0] text-xs text-[#7A3E2E] hover:bg-[#FDE8DF] transition-colors whitespace-nowrap">
+                <Wallet className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Record Payment</span>
+              </button>
+            )}
           </div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex gap-1 border-b border-[#F2C4B0] overflow-x-auto">
+          <button
+            onClick={() => handleTabChange('overview')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap',
+              activeTab === 'overview'
+                ? 'text-[#E8896A] border-b-2 border-[#E8896A]'
+                : 'text-[#B89080] hover:text-[#7A3E2E]'
+            )}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => handleTabChange('credit')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap',
+              activeTab === 'credit'
+                ? 'text-[#E8896A] border-b-2 border-[#E8896A]'
+                : 'text-[#B89080] hover:text-[#7A3E2E]'
+            )}
+          >
+            Credit
+          </button>
         </div>
       </div>
 
+      {/* Tab Content */}
+      {activeTab === 'overview' ? (
+        <OverviewTab
+          metricsState={metricsState}
+          salesChartState={salesChartState}
+          topProductsState={topProductsState}
+          categoryPerformanceState={categoryPerformanceState}
+          metrics={metrics}
+          salesChartData={salesChartData}
+          topProductsData={topProductsData}
+          revenueChartData={revenueChartData}
+          recentSales={recentSales}
+          categoryPerformance={categoryPerformance}
+          deadStock={deadStock}
+          loading={loading}
+          error={error}
+          refresh={refresh}
+          router={router}
+          inventory={inventory}
+          filteredSales={filteredSales}
+          salesChart={salesChart}
+          topProductsChart={topProductsChart}
+          categoryChart={categoryChart}
+          paymentChart={paymentChart}
+          revenueChange={revenueChange}
+        />
+      ) : (
+        <CreditDashboardTab dateRange={dateRange} />
+      )}
+
+      <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen} products={allProducts}
+        onSubmit={async (data) => { await createSale(data); refresh() }} />
+
+      <RecordPaymentTrigger
+        customerId={null}
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        onSuccess={refresh}
+      />
+    </div>
+  )
+}
+
+// Overview Tab Component
+function OverviewTab({
+  metricsState, salesChartState, topProductsState, categoryPerformanceState,
+  metrics, salesChartData, topProductsData, revenueChartData,
+  recentSales, categoryPerformance, deadStock, loading, error, refresh,
+  router, inventory, filteredSales, salesChart, topProductsChart, categoryChart, paymentChart, revenueChange
+}: any) {
+  return (
+    <>
       {/* Low Stock Banner */}
       {!metricsState.isLoading && !metricsState.isError && metricsState.data.low_stock_count > 0 && (
         <button onClick={() => router.push('/inventory')}
@@ -280,9 +382,6 @@ export default function DashboardPage() {
           />
         </div>
       </div>
-
-      <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen} products={allProducts}
-        onSubmit={async (data) => { await createSale(data); refresh() }} />
-    </div>
+    </>
   )
 }

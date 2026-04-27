@@ -3,7 +3,7 @@
 import { useFieldArray, useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,8 @@ import { SelectNative } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
-import type { Product, SaleCreate } from '@/types'
+import { useCustomers } from '@/hooks/useCustomers'
+import type { Product, SaleCreate, Customer } from '@/types'
 
 const saleItemSchema = z.object({
   product_id: z.string().min(1, 'Select a product'),
@@ -25,8 +26,11 @@ const saleItemSchema = z.object({
 const saleSchema = z.object({
   items: z.array(saleItemSchema).min(1, 'Add at least one item'),
   notes: z.string().optional(),
+  payment_type: z.enum(['cash', 'credit']).default('cash'),
   payment_method: z.enum(['cash', 'card', 'gcash', 'paymaya', 'bank_transfer']).default('cash'),
   cash_received: z.coerce.number().optional(),
+  customer_id: z.string().optional(),
+  override_credit_limit: z.boolean().default(false),
 })
 
 type SaleFormValues = z.infer<typeof saleSchema>
@@ -39,6 +43,7 @@ interface SaleFormProps {
 }
 
 export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormProps) {
+  const { allCustomers, refetch: refetchCustomers } = useCustomers()
   const {
     register,
     control,
@@ -52,15 +57,21 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
     defaultValues: {
       items: [{ product_id: '', quantity: 1, unit_price: 0 }],
       notes: '',
+      payment_type: 'cash' as const,
       payment_method: 'cash' as const,
       cash_received: undefined,
+      customer_id: '',
+      override_credit_limit: false,
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' })
   const watchedItems = watch('items')
+  const watchedPaymentType = watch('payment_type')
   const watchedPaymentMethod = watch('payment_method')
   const watchedCashReceived = watch('cash_received')
+  const watchedCustomerId = watch('customer_id')
+  const watchedOverride = watch('override_credit_limit')
 
   const total = watchedItems.reduce((sum, item) => {
     const qty = Number(item.quantity) || 0
@@ -72,6 +83,32 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
     ? Math.max(0, Number(watchedCashReceived) - total) 
     : 0
 
+  // Get selected customer and calculate credit info
+  const selectedCustomer = allCustomers.find(c => c.id === watchedCustomerId)
+  const availableCredit = selectedCustomer 
+    ? selectedCustomer.credit_limit - selectedCustomer.current_balance 
+    : 0
+  const newBalance = selectedCustomer 
+    ? selectedCustomer.current_balance + total 
+    : 0
+  const creditUtilization = selectedCustomer && selectedCustomer.credit_limit > 0
+    ? (newBalance / selectedCustomer.credit_limit) * 100
+    : 0
+  const isNearLimit = creditUtilization > 80 && creditUtilization <= 100
+  const isOverLimit = creditUtilization > 100
+  
+  // Calculate due date
+  const getDueDate = () => {
+    if (!selectedCustomer) return null
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + selectedCustomer.payment_terms_days)
+    return dueDate.toLocaleDateString('en-PH', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  }
+
   function handleProductChange(index: number, productId: string) {
     const product = products.find(p => p.id === productId)
     if (product) {
@@ -80,6 +117,18 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
   }
 
   async function onFormSubmit(values: SaleFormValues) {
+    // For credit sales, validate customer selection
+    if (values.payment_type === 'credit') {
+      if (!values.customer_id) {
+        return // Form validation should catch this
+      }
+      
+      // Check credit limit (unless override is enabled)
+      if (isOverLimit && !values.override_credit_limit) {
+        return // User needs to enable override
+      }
+    }
+
     const saleData: SaleCreate = {
       items: values.items.map(item => ({
         product_id: item.product_id,
@@ -87,7 +136,8 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
         unit_price: item.unit_price,
       })),
       notes: values.notes || null,
-      payment_method: values.payment_method,
+      // For credit sales, payment_method should be 'credit', otherwise use the selected method
+      payment_method: values.payment_type === 'credit' ? 'credit' : values.payment_method,
     }
 
     // Add cash handling for cash payments
@@ -96,15 +146,29 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
       saleData.change_given = Math.max(0, values.cash_received - total)
     }
 
+    // For credit sales, add customer_id and override flag
+    if (values.payment_type === 'credit' && values.customer_id) {
+      saleData.customer_id = values.customer_id
+      saleData.override_credit_limit = values.override_credit_limit
+    }
+
     await onSubmit(saleData)
+    
+    // Refetch customers if it was a credit sale to update balances
+    if (values.payment_type === 'credit' && values.customer_id) {
+      await refetchCustomers()
+    }
+    
     reset()
     onOpenChange(false)
   }
 
   const anyZeroQuantity = watchedItems.some(item => Number(item.quantity) === 0)
-  const insufficientCash = watchedPaymentMethod === 'cash' && 
+  const insufficientCash = watchedPaymentType === 'cash' && watchedPaymentMethod === 'cash' && 
     (!watchedCashReceived || Number(watchedCashReceived) < total)
-  const canSubmit = !anyZeroQuantity && !insufficientCash
+  const missingCustomer = watchedPaymentType === 'credit' && !watchedCustomerId
+  const creditLimitExceeded = watchedPaymentType === 'credit' && isOverLimit && !watchedOverride
+  const canSubmit = !anyZeroQuantity && !insufficientCash && !missingCustomer && !creditLimitExceeded
 
   return (
     <Dialog open={open} onOpenChange={open => { if (!open) reset(); onOpenChange(open) }}>
@@ -267,30 +331,163 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
             <span className="text-lg font-medium text-[#7A3E2E]">{formatCurrency(total)}</span>
           </div>
 
-          {/* Payment Method */}
+          {/* Payment Type Selector */}
           <div>
-            <label className="text-xs text-[#B89080] mb-1 block">Payment Method</label>
+            <label className="text-xs text-[#B89080] mb-1 block">Payment Type</label>
             <Controller
               control={control}
-              name="payment_method"
+              name="payment_type"
               render={({ field }) => (
                 <SelectNative
                   value={field.value}
-                  onValueChange={field.onChange}
+                  onValueChange={(val) => {
+                    field.onChange(val)
+                    // Reset customer selection when switching to cash
+                    if (val === 'cash') {
+                      setValue('customer_id', '')
+                      setValue('override_credit_limit', false)
+                    }
+                  }}
                   className="h-8 text-xs"
                 >
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="gcash">GCash</option>
-                  <option value="paymaya">PayMaya</option>
-                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash Sale</option>
+                  <option value="credit">Credit Sale</option>
                 </SelectNative>
               )}
             />
           </div>
 
+          {/* Credit Sale Section */}
+          {watchedPaymentType === 'credit' && (
+            <div className="bg-[#FDF6F0] rounded-lg border border-[#F2C4B0] p-3 space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-lg bg-[#FDE8DF] flex items-center justify-center">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#E8896A]" />
+                </div>
+                <span className="text-xs font-medium text-[#7A3E2E]">Credit Sale Information</span>
+              </div>
+
+              {/* Customer Selector */}
+              <div>
+                <label className="text-xs text-[#B89080] mb-1 block">Customer *</label>
+                <Controller
+                  control={control}
+                  name="customer_id"
+                  render={({ field }) => (
+                    <SelectNative
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="h-8 text-xs"
+                    >
+                      <option value="" disabled>Select customer</option>
+                      {allCustomers
+                        .filter(c => c.is_active)
+                        .map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.business_name ? `(${c.business_name})` : ''}
+                          </option>
+                        ))}
+                    </SelectNative>
+                  )}
+                />
+                {missingCustomer && (
+                  <p className="text-xs text-[#C05050] mt-1">Please select a customer for credit sale</p>
+                )}
+              </div>
+
+              {/* Customer Credit Info */}
+              {selectedCustomer && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Credit Limit:</span>
+                    <span className="text-[#7A3E2E] font-medium">{formatCurrency(selectedCustomer.credit_limit)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Current Balance:</span>
+                    <span className="text-[#7A3E2E] font-medium">{formatCurrency(selectedCustomer.current_balance)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Available Credit:</span>
+                    <span className={`font-medium ${availableCredit < 0 ? 'text-[#C05050]' : 'text-[#7A3E2E]'}`}>
+                      {formatCurrency(availableCredit)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs border-t border-[#F2C4B0] pt-2">
+                    <span className="text-[#B89080]">New Balance:</span>
+                    <span className={`font-medium ${isOverLimit ? 'text-[#C05050]' : isNearLimit ? 'text-[#E8896A]' : 'text-[#7A3E2E]'}`}>
+                      {formatCurrency(newBalance)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Credit Utilization:</span>
+                    <span className={`font-medium ${isOverLimit ? 'text-[#C05050]' : isNearLimit ? 'text-[#E8896A]' : 'text-[#7A3E2E]'}`}>
+                      {creditUtilization.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Payment Terms:</span>
+                    <span className="text-[#7A3E2E] font-medium">{selectedCustomer.payment_terms_days} days</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#B89080]">Due Date:</span>
+                    <span className="text-[#7A3E2E] font-medium">{getDueDate()}</span>
+                  </div>
+
+                  {/* Warning Messages */}
+                  {isNearLimit && !isOverLimit && (
+                    <div className="bg-[#FFF3E0] border border-[#E8896A] rounded-lg p-2 mt-2">
+                      <p className="text-xs text-[#E8896A] font-medium">
+                        ⚠️ Customer is near credit limit ({creditUtilization.toFixed(1)}% utilized)
+                      </p>
+                    </div>
+                  )}
+
+                  {isOverLimit && (
+                    <div className="bg-[#FDECEA] border border-[#C05050] rounded-lg p-2 mt-2">
+                      <p className="text-xs text-[#C05050] font-medium mb-2">
+                        ⚠️ Credit limit exceeded! New balance would be {formatCurrency(newBalance)} (limit: {formatCurrency(selectedCustomer.credit_limit)})
+                      </p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 rounded border-[#C05050] text-[#E8896A] focus:ring-[#E8896A]"
+                          {...register('override_credit_limit')}
+                        />
+                        <span className="text-xs text-[#7A3E2E]">Override credit limit (requires approval)</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Payment Method - Only show for cash sales */}
+          {watchedPaymentType === 'cash' && (
+            <div>
+              <label className="text-xs text-[#B89080] mb-1 block">Payment Method</label>
+              <Controller
+                control={control}
+                name="payment_method"
+                render={({ field }) => (
+                  <SelectNative
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    className="h-8 text-xs"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="gcash">GCash</option>
+                    <option value="paymaya">PayMaya</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </SelectNative>
+                )}
+              />
+            </div>
+          )}
+
           {/* Cash Calculator (only for cash payments) */}
-          {watchedPaymentMethod === 'cash' && (
+          {watchedPaymentType === 'cash' && watchedPaymentMethod === 'cash' && (
             <div className="bg-[#FDF6F0] rounded-lg border border-[#F2C4B0] p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-[#B89080]">Amount Due:</span>

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
-from routers import products, inventory, sales, categories, settings
+from routers import products, inventory, sales, categories, settings, customers, credit_sales, payments, reports
 from middleware.rate_limit import RateLimitMiddleware
 from middleware.logging import StructuredLoggingMiddleware
 
@@ -37,6 +37,8 @@ app = FastAPI(
     # Disable docs in production
     docs_url="/docs" if os.getenv("ENV") != "production" else None,
     redoc_url=None,
+    # Disable automatic trailing slash redirects to avoid CORS issues
+    redirect_slashes=False,
 )
 
 # ─── Middleware (order matters — first added = outermost) ─────────────────────
@@ -53,8 +55,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],
     max_age=600,
 )
 
@@ -82,6 +85,10 @@ app.include_router(inventory.router, prefix="/api/v1")
 app.include_router(sales.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
+app.include_router(customers.router, prefix="/api/v1")
+app.include_router(credit_sales.router, prefix="/api/v1")
+app.include_router(payments.router, prefix="/api/v1")
+app.include_router(reports.router, prefix="/api/v1")
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
 @app.exception_handler(Exception)

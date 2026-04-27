@@ -44,7 +44,7 @@ export interface StockMovement {
   products?: Product
 }
 
-export type PaymentMethod = 'cash' | 'card' | 'gcash' | 'paymaya' | 'bank_transfer'
+export type PaymentMethod = 'cash' | 'card' | 'gcash' | 'paymaya' | 'bank_transfer' | 'credit'
 export type DiscountType = 'none' | 'percentage' | 'fixed' | 'senior_pwd'
 export type SaleStatus = 'completed' | 'refunded' | 'partially_refunded'
 
@@ -109,6 +109,9 @@ export interface SaleCreate {
   discount_type?: DiscountType
   discount_value?: number
   discount_amount?: number
+  // Credit sale fields
+  customer_id?: string
+  override_credit_limit?: boolean
 }
 
 export interface InventoryAdjustment {
@@ -191,7 +194,7 @@ export interface CartItem {
 // ============================================================================
 
 // Payment Method Validation
-export const paymentMethodSchema = z.enum(['cash', 'card', 'gcash', 'paymaya', 'bank_transfer'], {
+export const paymentMethodSchema = z.enum(['cash', 'card', 'gcash', 'paymaya', 'bank_transfer', 'credit'], {
   errorMap: () => ({ message: 'Please select a valid payment method' })
 })
 
@@ -409,6 +412,92 @@ export function validateRefund(
   
   return { valid: true }
 }
+
+// ============================================================================
+// CUSTOMER CREDIT MANAGEMENT TYPES
+// ============================================================================
+
+export interface Customer {
+  id: string
+  name: string
+  contact_number: string | null
+  address: string | null
+  business_name: string | null
+  credit_limit: number
+  current_balance: number
+  payment_terms_days: number
+  is_active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CustomerCreate {
+  name: string
+  contact_number?: string | null
+  address?: string | null
+  business_name?: string | null
+  credit_limit?: number
+  payment_terms_days?: number
+  notes?: string | null
+}
+
+export interface CustomerUpdate extends Partial<CustomerCreate> {
+  is_active?: boolean
+}
+
+export interface CreditSale {
+  id: string
+  customer_id: string
+  sale_id: string | null
+  amount: number
+  due_date: string
+  status: 'pending' | 'paid' | 'overdue' | 'partially_paid'
+  notes: string | null
+  created_by: string
+  created_at: string
+  customers?: Customer
+  sales?: Sale
+}
+
+export interface Payment {
+  id: string
+  customer_id: string
+  credit_sale_id: string | null
+  amount: number
+  payment_method: 'cash' | 'bank_transfer' | 'gcash' | 'other'
+  payment_date: string
+  notes: string | null
+  created_by: string
+  created_at: string
+  customers?: Customer
+  credit_sales?: CreditSale
+}
+
+export interface CustomerBalance {
+  customer_id: string
+  customer_name: string
+  current_balance: number
+  credit_limit: number
+  available_credit: number
+  overdue_amount: number
+  is_near_limit: boolean
+}
+
+// Zod schemas for customer validation
+export const customerCreateSchema = z.object({
+  name: z.string().min(1, 'Customer name is required').max(255),
+  contact_number: z.string().max(50).optional().nullable(),
+  address: z.string().max(500).optional().nullable(),
+  business_name: z.string().max(255).optional().nullable(),
+  credit_limit: z.number().min(0, 'Credit limit cannot be negative').default(0),
+  payment_terms_days: z.number().int().min(0, 'Payment terms must be at least 0 days').default(30),
+  notes: z.string().max(1000).optional().nullable(),
+})
+
+export const customerUpdateSchema = customerCreateSchema.partial().extend({
+  is_active: z.boolean().optional(),
+})
 
 // ============================================================================
 // REPORT TYPES AND INTERFACES

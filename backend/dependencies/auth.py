@@ -17,7 +17,7 @@ def _get_auth_client():
     return _auth_client
 
 
-async def verify_token(authorization: str = Header(...)) -> dict:
+async def verify_token(authorization: str = Header(..., alias="Authorization")) -> dict:
     """Verify JWT token from frontend and return user info"""
     try:
         token = authorization.replace("Bearer ", "").strip()
