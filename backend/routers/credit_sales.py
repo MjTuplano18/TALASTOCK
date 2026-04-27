@@ -64,6 +64,7 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
     
     # Credit limit enforcement
     warning_message = None
+    new_credit_limit = None
     if new_balance > credit_limit:
         if not payload.override_credit_limit:
             raise HTTPException(
@@ -71,9 +72,11 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
                 detail=f"Credit limit exceeded. Customer limit: ₱{credit_limit}, Current balance: ₱{current_balance}, New balance would be: ₱{new_balance}. Set override_credit_limit=true to proceed."
             )
         else:
+            # Calculate new credit limit (new balance + 20% buffer)
+            new_credit_limit = new_balance * Decimal("1.2")
             # Log override for audit
-            logger.warning(f"Credit limit override: customer_id={payload.customer_id}, user_id={user['id']}, amount={payload.amount}, new_balance={new_balance}, limit={credit_limit}")
-            warning_message = f"Credit limit override applied. New balance (₱{new_balance}) exceeds limit (₱{credit_limit})."
+            logger.warning(f"Credit limit override: customer_id={payload.customer_id}, user_id={user['id']}, amount={payload.amount}, new_balance={new_balance}, old_limit={credit_limit}, new_limit={new_credit_limit}")
+            warning_message = f"Credit limit override applied. Customer credit limit automatically increased from ₱{credit_limit} to ₱{new_credit_limit}."
     
     # Check if near credit limit (>80%)
     elif new_balance > (credit_limit * Decimal("0.8")) and credit_limit > 0:
@@ -107,13 +110,32 @@ async def create_credit_sale(payload: CreditSaleCreate, user=Depends(verify_toke
     
     # Log credit limit override to audit table if override was used
     if new_balance > credit_limit and payload.override_credit_limit:
+        # new_credit_limit was already calculated above
+        if new_credit_limit is None:
+            new_credit_limit = new_balance * Decimal("1.2")
+        
+        # Update customer's credit limit
+        try:
+            db.table("customers").update({
+                "credit_limit": float(new_credit_limit),
+                "updated_at": datetime.utcnow().isoformat()
+            }).eq("id", payload.customer_id).execute()
+            
+            logger.info(f"Credit limit auto-increased: customer_id={payload.customer_id}, old_limit={credit_limit}, new_limit={new_credit_limit}")
+        except Exception as e:
+            logger.error(f"Failed to update customer credit limit: {str(e)}")
+            # Continue anyway - the sale is already created
+        
+        # Log override to audit table
         override_data = {
             "customer_id": payload.customer_id,
             "credit_sale_id": credit_sale_id,
             "previous_balance": float(current_balance),
             "sale_amount": float(payload.amount),
             "new_balance": float(new_balance),
-            "credit_limit": float(credit_limit),
+            "credit_limit": float(credit_limit),  # Old credit limit
+            "old_credit_limit": float(credit_limit),
+            "new_credit_limit": float(new_credit_limit),
             "override_reason": payload.notes,
             "created_by": user["id"],
         }
