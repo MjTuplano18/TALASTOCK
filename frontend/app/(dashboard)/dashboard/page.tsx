@@ -57,8 +57,8 @@ export default function DashboardPage() {
   const searchParams = useSearchParams()
   const [saleFormOpen, setSaleFormOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [dateRange, setDateRange] = useState<DateRange>('7d')
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [creditRefreshTrigger, setCreditRefreshTrigger] = useState(0)
   
   // Tab state management with URL persistence
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -73,7 +73,25 @@ export default function DashboardPage() {
     window.history.pushState({}, '', url.toString())
   }
 
-  const { startDate, endDate } = useDateRangeQuery()
+  const { startDate, endDate, preset } = useDateRangeQuery()
+  
+  // Convert global date range preset to simple format for Credit tab
+  const dateRange: DateRange = useMemo(() => {
+    if (preset === 'last_7_days' || preset === 'today' || preset === 'yesterday') return '7d'
+    if (preset === 'last_30_days' || preset === 'this_month') return '30d'
+    if (preset === 'last_month') return '3m'
+    if (preset === 'this_year') return '6m'
+    if (preset === 'custom') {
+      // For custom ranges, estimate based on date difference
+      if (!startDate || !endDate) return '30d'
+      const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (days <= 7) return '7d'
+      if (days <= 30) return '30d'
+      if (days <= 90) return '3m'
+      return '6m'
+    }
+    return '30d' // default
+  }, [preset, startDate, endDate])
 
   const {
     metricsState, salesChartState, topProductsState, categoryPerformanceState,
@@ -232,7 +250,7 @@ export default function DashboardPage() {
           revenueChange={revenueChange}
         />
       ) : (
-        <CreditDashboardTab dateRange={dateRange} />
+        <CreditDashboardTab dateRange={dateRange} refreshTrigger={creditRefreshTrigger} />
       )}
 
       <SaleForm open={saleFormOpen} onOpenChange={setSaleFormOpen} products={allProducts}
@@ -242,7 +260,10 @@ export default function DashboardPage() {
         customerId={null}
         open={paymentOpen}
         onOpenChange={setPaymentOpen}
-        onSuccess={refresh}
+        onSuccess={() => {
+          refresh() // Refresh overview tab
+          setCreditRefreshTrigger(prev => prev + 1) // Trigger credit tab refresh
+        }}
       />
     </div>
   )

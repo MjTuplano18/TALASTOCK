@@ -21,9 +21,10 @@ interface CreditMetrics {
 
 interface CreditDashboardTabProps {
   dateRange: DateRange
+  refreshTrigger?: number // Add a trigger prop to force refresh
 }
 
-export function CreditDashboardTab({ dateRange }: CreditDashboardTabProps) {
+export function CreditDashboardTab({ dateRange, refreshTrigger }: CreditDashboardTabProps) {
   const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<CreditMetrics>({
     total_credit_outstanding: 0,
@@ -33,7 +34,7 @@ export function CreditDashboardTab({ dateRange }: CreditDashboardTabProps) {
 
   useEffect(() => {
     fetchCreditMetrics()
-  }, [dateRange])
+  }, [dateRange, refreshTrigger]) // Re-fetch when refreshTrigger changes
 
   async function fetchCreditMetrics() {
     setLoading(true)
