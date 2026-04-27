@@ -241,28 +241,72 @@ export default function SalesPage() {
     if (!voidTarget) return
     setVoiding(true)
     try {
-      // Delete sale items first, then the sale
+      // Step 1: Restore inventory for each item in the sale
+      if (voidTarget.sale_items && voidTarget.sale_items.length > 0) {
+        for (const item of voidTarget.sale_items) {
+          // Get current inventory
+          const { data: inventory, error: invFetchError } = await supabase
+            .from('inventory')
+            .select('quantity')
+            .eq('product_id', item.product_id)
+            .single()
+
+          if (invFetchError) {
+            console.error('Failed to fetch inventory:', invFetchError)
+            throw new Error(`Failed to fetch inventory for ${item.products?.name || 'product'}`)
+          }
+
+          // Restore inventory (add back the quantity)
+          const newQuantity = inventory.quantity + item.quantity
+          
+          const { error: invUpdateError } = await supabase
+            .from('inventory')
+            .update({ 
+              quantity: newQuantity,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('product_id', item.product_id)
+
+          if (invUpdateError) {
+            console.error('Failed to update inventory:', invUpdateError)
+            throw new Error(`Failed to restore inventory for ${item.products?.name || 'product'}`)
+          }
+
+          // Create stock movement with type='adjustment' for audit trail
+          await supabase.from('stock_movements').insert({
+            product_id: item.product_id,
+            type: 'adjustment',
+            quantity: item.quantity,
+            note: `Voided Sale #${voidTarget.id} - Inventory restored`,
+            created_by: (await supabase.auth.getUser()).data.user?.id,
+          })
+        }
+      }
+      
+      // Step 2: Delete sale items
       const { error: itemsError } = await supabase.from('sale_items').delete().eq('sale_id', voidTarget.id)
       if (itemsError) {
         console.error('Failed to delete sale items:', itemsError)
         throw new Error('Failed to delete sale items')
       }
       
+      // Step 3: Delete the sale
       const { error: saleError } = await supabase.from('sales').delete().eq('id', voidTarget.id)
       if (saleError) {
         console.error('Failed to delete sale:', saleError)
         throw new Error('Failed to delete sale')
       }
       
-      // Invalidate all related caches
+      // Step 4: Invalidate all related caches
       if (typeof window !== 'undefined') {
         localStorage.removeItem('talastock_cache_sales')
+        localStorage.removeItem('talastock_cache_inventory')
         localStorage.removeItem('talastock_ai_talastock:ai:insight')
         localStorage.removeItem('talastock_ai_talastock:ai:anomalies')
       }
       
       // Show success toast
-      toast.success('Sale voided successfully')
+      toast.success('Sale voided and inventory restored')
       
       // Close dialog
       setVoidTarget(null)
@@ -727,7 +771,7 @@ export default function SalesPage() {
         open={!!voidTarget}
         onOpenChange={open => { if (!open) setVoidTarget(null) }}
         title="Void this sale?"
-        description={`This will permanently delete the sale of ${voidTarget ? formatCurrency(voidTarget.total_amount) : ''}. Note: inventory quantities will NOT be automatically restored — adjust manually if needed.`}
+        description={`This will permanently delete the sale of ${voidTarget ? formatCurrency(voidTarget.total_amount) : ''} and restore inventory quantities. This action cannot be undone.`}
         confirmLabel="Void Sale"
         onConfirm={handleVoid}
         loading={voiding}
