@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Pie, PieChart, Cell } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart'
+import { Pie, PieChart, Cell, Legend, ResponsiveContainer } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
 import type { ChartConfig } from '@/components/ui/chart'
 import { supabase } from '@/lib/supabase'
@@ -129,35 +129,48 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
     )
   }
 
+  const renderLegend = (props: any) => {
+    const { payload } = props
+    return (
+      <div className="flex flex-wrap justify-center gap-3 mt-3">
+        {payload.map((entry: any, index: number) => (
+          <div key={`legend-${index}`} className="flex items-center gap-1.5">
+            <div 
+              className="w-3 h-3 rounded-sm" 
+              style={{ backgroundColor: entry.color }}
+            />
+            <span className="text-xs text-[#7A3E2E]">{entry.value}</span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <ChartContainer config={chartConfig} className="h-[250px] w-full">
       <PieChart>
         <ChartTooltip 
-          content={<ChartTooltipContent />}
-          formatter={(value: number, name: string, props: any) => {
-            const { count } = props.payload
-            return [
-              `₱${value.toLocaleString()} (${count} ${count === 1 ? 'payment' : 'payments'})`,
-              name
-            ]
-          }}
+          content={<ChartTooltipContent hideLabel />}
         />
         <Pie
           data={data}
           dataKey="amount"
           nameKey="method"
           cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={90}
+          cy="45%"
+          innerRadius={50}
+          outerRadius={80}
           paddingAngle={2}
+          label={({ method, amount }) => `₱${amount.toLocaleString()}`}
+          labelLine={false}
         >
           {data.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.fill} />
           ))}
         </Pie>
-        <ChartLegend content={<ChartLegendContent />} />
+        <Legend content={renderLegend} />
       </PieChart>
     </ChartContainer>
   )
 }
+

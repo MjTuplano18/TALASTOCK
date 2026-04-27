@@ -84,14 +84,7 @@ export function CreditUtilizationChart() {
         <YAxis type="category" dataKey="name" stroke="#B89080" fontSize={11} 
           tickLine={false} axisLine={false} width={100} />
         <ChartTooltip 
-          content={<ChartTooltipContent />}
-          formatter={(value: number, name: string, props: any) => {
-            const { balance, limit } = props.payload
-            return [
-              `${value.toFixed(1)}% (₱${balance.toLocaleString()} / ₱${limit.toLocaleString()})`,
-              'Utilization'
-            ]
-          }}
+          content={<ChartTooltipContent hideLabel />}
         />
         <Bar dataKey="utilization" radius={[0, 4, 4, 0]}>
           {data.map((entry, index) => (
