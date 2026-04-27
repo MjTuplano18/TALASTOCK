@@ -6,7 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
-from routers import products, inventory, sales, categories, settings, customers, credit_sales, payments, reports
+# Try to import routers with error handling
+try:
+    from routers import products, inventory, sales, categories, settings, customers, credit_sales, payments, reports
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.info("All routers imported successfully")
+except ImportError as e:
+    logger_temp = logging.getLogger(__name__)
+    logger_temp.error(f"Failed to import routers: {e}")
+    raise
+
 from middleware.rate_limit import RateLimitMiddleware
 from middleware.logging import StructuredLoggingMiddleware
 
