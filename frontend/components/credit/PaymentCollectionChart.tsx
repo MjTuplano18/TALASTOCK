@@ -29,23 +29,41 @@ export function PaymentCollectionChart({ startDate, endDate }: PaymentCollection
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
-      // Build query params
+      // Build query params - if no dates provided, backend will default to last 30 days
       const params = new URLSearchParams()
-      if (startDate) params.append('start_date', startDate.toISOString().split('T')[0])
-      if (endDate) params.append('end_date', endDate.toISOString().split('T')[0])
+      
+      // Safely convert dates to ISO string
+      if (startDate) {
+        const dateStr = startDate instanceof Date 
+          ? startDate.toISOString().split('T')[0]
+          : new Date(startDate).toISOString().split('T')[0]
+        params.append('start_date', dateStr)
+      }
+      
+      if (endDate) {
+        const dateStr = endDate instanceof Date 
+          ? endDate.toISOString().split('T')[0]
+          : new Date(endDate).toISOString().split('T')[0]
+        params.append('end_date', dateStr)
+      }
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/payments/trend?${params.toString()}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      )
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/payments/trend?${params.toString()}`
+      console.log('Fetching payments trend:', url)
 
-      if (!response.ok) throw new Error('Failed to fetch payment trend')
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Payments trend API error:', response.status, errorText)
+        throw new Error(`Failed to fetch payment trend: ${response.status}`)
+      }
 
       const result = await response.json()
+      console.log('Payments trend response:', result)
       const trendData = result.data || []
       
       setData(trendData)
