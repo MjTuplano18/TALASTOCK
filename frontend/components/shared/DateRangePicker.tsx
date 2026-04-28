@@ -67,7 +67,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   useEffect(() => {
     if (open && ref.current) {
       const rect = ref.current.getBoundingClientRect()
-      const dropdownWidth = 320
+      const dropdownWidth = Math.min(320, window.innerWidth - 16) // Account for 8px margins on each side
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
       
@@ -76,7 +76,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       
       // On mobile/small screens (< 640px), always center in viewport
       if (viewportWidth < 640) {
-        left = Math.max(8, (viewportWidth - dropdownWidth) / 2)
+        left = (viewportWidth - dropdownWidth) / 2
         
         // If calendar would go off bottom of screen, position it above the button
         if (top + 400 > viewportHeight) {
@@ -168,7 +168,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
 
       {open && (
         <div 
-          className="fixed z-[100] bg-white border border-[#F2C4B0] rounded-xl shadow-xl p-4 w-[320px]"
+          className="fixed z-[100] bg-white border border-[#F2C4B0] rounded-xl shadow-xl p-4 w-[320px] max-w-[calc(100vw-16px)]"
           style={{
             top: `${position.top}px`,
             left: `${position.left}px`,
