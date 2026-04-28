@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
+import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 interface CreditSalesTrendChartProps {
@@ -94,6 +95,16 @@ export function CreditSalesTrendChart({ startDate, endDate }: CreditSalesTrendCh
         <XAxis dataKey="date" stroke="#B89080" fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke="#B89080" fontSize={12} tickLine={false} axisLine={false}
           tickFormatter={(value) => `₱${value.toLocaleString()}`} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #F2C4B0', 
+            borderRadius: '8px',
+            fontSize: '12px'
+          }}
+          formatter={(value: number) => [formatCurrency(value), 'Sales']}
+          labelStyle={{ color: '#7A3E2E', fontWeight: 500 }}
+        />
         <Line type="monotone" dataKey="amount" stroke="#E8896A" strokeWidth={2}
           dot={{ fill: '#E8896A', r: 4 }} activeDot={{ r: 6 }} />
       </LineChart>

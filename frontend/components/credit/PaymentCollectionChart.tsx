@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { ChartSkeleton } from '@/components/charts/ChartSkeleton'
+import { formatCurrency } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 interface PaymentCollectionChartProps {
@@ -94,6 +95,16 @@ export function PaymentCollectionChart({ startDate, endDate }: PaymentCollection
         <XAxis dataKey="date" stroke="#B89080" fontSize={12} tickLine={false} axisLine={false} />
         <YAxis stroke="#B89080" fontSize={12} tickLine={false} axisLine={false}
           tickFormatter={(value) => `₱${value.toLocaleString()}`} />
+        <Tooltip 
+          contentStyle={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #F2C4B0', 
+            borderRadius: '8px',
+            fontSize: '12px'
+          }}
+          formatter={(value: number) => [formatCurrency(value), 'Amount']}
+          labelStyle={{ color: '#7A3E2E', fontWeight: 500 }}
+        />
         <Bar dataKey="amount" fill="#E8896A" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
