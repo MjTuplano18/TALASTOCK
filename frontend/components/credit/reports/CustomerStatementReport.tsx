@@ -270,7 +270,7 @@ export function CustomerStatementReport() {
               className="flex items-center gap-2 px-4 py-2 text-sm bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50 shrink-0"
             >
               <Download className="w-4 h-4" />
-              {exporting ? 'Generating...' : 'Export PDF'}
+              {exporting ? 'Generating...' : 'Export (PDF)'}
             </button>
           </div>
         )}

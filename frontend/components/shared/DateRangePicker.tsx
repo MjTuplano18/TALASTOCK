@@ -68,23 +68,29 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     if (open && ref.current) {
       const rect = ref.current.getBoundingClientRect()
       const dropdownWidth = 320
+      const viewportWidth = window.innerWidth
       
-      // Position to the right of the button, but ensure it doesn't go off screen
-      let left = rect.right - dropdownWidth
+      // Try to center the dropdown below the button
+      let left = rect.left + (rect.width / 2) - (dropdownWidth / 2)
       
-      // If it would go off the left edge, align to left of button instead
+      // Ensure minimum 8px margin from left edge
       if (left < 8) {
-        left = rect.left
+        left = 8
       }
       
-      // If still off screen to the right, push it back
-      if (left + dropdownWidth > window.innerWidth - 8) {
-        left = window.innerWidth - dropdownWidth - 8
+      // Ensure minimum 8px margin from right edge
+      if (left + dropdownWidth > viewportWidth - 8) {
+        left = viewportWidth - dropdownWidth - 8
+      }
+      
+      // On mobile/small screens, center in viewport if button is near edge
+      if (viewportWidth < 640) {
+        left = Math.max(8, (viewportWidth - dropdownWidth) / 2)
       }
       
       setPosition({
         top: rect.bottom + 8,
-        left: Math.max(8, left)
+        left
       })
     }
   }, [open])

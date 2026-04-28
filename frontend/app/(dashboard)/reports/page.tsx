@@ -71,7 +71,7 @@ function ReportCard({ title, description, icon, summaryMetrics, filters, onExpor
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
-            {exporting ? 'Generating…' : `${exportLabel} (PDF)`}
+            {exporting ? 'Generating…' : `Export (PDF)`}
           </button>
           <button
             onClick={onExportExcel}
@@ -79,7 +79,7 @@ function ReportCard({ title, description, icon, summaryMetrics, filters, onExpor
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-[#F2C4B0] text-[#7A3E2E] rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-50"
           >
             <Download className="w-3.5 h-3.5" />
-            {exporting ? 'Generating…' : `${exportLabel} (Excel)`}
+            {exporting ? 'Generating…' : `Export (Excel)`}
           </button>
         </div>
       </div>

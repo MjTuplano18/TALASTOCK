@@ -17,11 +17,14 @@ export function formatCurrency(amount: number): string {
 
 // PDF-safe currency formatter (uses PHP instead of ₱ symbol)
 export function formatCurrencyForPDF(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
+  const formatted = new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: 'PHP',
     minimumFractionDigits: 2,
   }).format(amount)
+  
+  // Replace the peso symbol with 'PHP' for PDF compatibility
+  return formatted.replace('₱', 'PHP ')
 }
 
 export function formatDate(dateString: string): string {
