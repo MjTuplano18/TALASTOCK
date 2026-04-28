@@ -128,6 +128,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def health():
     return {
         "status": "ok",
-        "version": "1.0.0",
+        "version": "1.0.2",  # Force rebuild with customers router
         "env": os.getenv("ENV", "development"),
     }
+
+# Force Render to rebuild and include customers router - 2026-04-28
