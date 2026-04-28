@@ -382,11 +382,21 @@ export function SaleForm({ open, onOpenChange, products, onSubmit }: SaleFormPro
                       <option value="" disabled>Select customer</option>
                       {allCustomers
                         .filter(c => c.is_active)
-                        .map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} {c.business_name ? `(${c.business_name})` : ''}
-                          </option>
-                        ))}
+                        .map(c => {
+                          // Format: "Name (Business)" with truncation
+                          let displayName = c.name
+                          if (c.business_name) {
+                            const truncatedBusiness = c.business_name.length > 25 
+                              ? c.business_name.substring(0, 25) + '...'
+                              : c.business_name
+                            displayName = `${c.name} (${truncatedBusiness})`
+                          }
+                          return (
+                            <option key={c.id} value={c.id}>
+                              {displayName}
+                            </option>
+                          )
+                        })}
                     </SelectNative>
                   )}
                 />

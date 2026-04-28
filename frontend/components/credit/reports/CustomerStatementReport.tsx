@@ -242,11 +242,16 @@ export function CustomerStatementReport() {
               className="w-full px-3 py-2 text-sm border border-[#F2C4B0] rounded-lg focus:border-[#E8896A] focus:ring-1 focus:ring-[#E8896A] text-[#7A3E2E]"
             >
               <option value="">Select a customer</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name} - {formatCurrency(c.current_balance)} balance
-                </option>
-              ))}
+              {customers.map(c => {
+                // Format: "Name — ₱X,XXX"
+                // Keep it concise to prevent overflow
+                const displayText = `${c.name} — ${formatCurrency(c.current_balance)}`
+                return (
+                  <option key={c.id} value={c.id}>
+                    {displayText}
+                  </option>
+                )
+              })}
             </select>
           </div>
 

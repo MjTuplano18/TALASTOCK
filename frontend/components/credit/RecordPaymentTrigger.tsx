@@ -126,11 +126,23 @@ export function RecordPaymentTrigger({
                   className="w-full h-9 px-3 text-sm border border-[#F2C4B0] rounded-lg bg-white text-[#7A3E2E] focus:outline-none focus:border-[#E8896A] focus:ring-1 focus:ring-[#E8896A]"
                 >
                   <option value="">Choose a customer…</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}{c.business_name ? ` (${c.business_name})` : ''} — {formatCurrency(c.current_balance)} balance
-                    </option>
-                  ))}
+                  {customers.map(c => {
+                    // Format: "Name (Business) — ₱X,XXX"
+                    // Truncate business name if too long to prevent overflow
+                    let displayName = c.name
+                    if (c.business_name) {
+                      const truncatedBusiness = c.business_name.length > 20 
+                        ? c.business_name.substring(0, 20) + '...'
+                        : c.business_name
+                      displayName = `${c.name} (${truncatedBusiness})`
+                    }
+                    const balance = formatCurrency(c.current_balance)
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {displayName} — {balance}
+                      </option>
+                    )
+                  })}
                 </select>
               )}
             </div>
