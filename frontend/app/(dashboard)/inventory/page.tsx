@@ -219,7 +219,6 @@ export default function InventoryPage() {
           <ExportDropdown 
             onExportExcel={() => exportInventoryToExcel(filtered)}
             onExportCSV={() => exportInventoryToCSV(filtered)}
-            disabled={filtered.length === 0}
             itemCount={filtered.length}
             isFiltered={hasFilters}
           />
