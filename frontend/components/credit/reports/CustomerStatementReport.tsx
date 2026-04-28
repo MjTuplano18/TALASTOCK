@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Download, FileText, User } from 'lucide-react'
 import { DateRangePicker, type DateRange } from '@/components/shared/DateRangePicker'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCurrencyForPDF, formatDate } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -163,8 +163,8 @@ export function CustomerStatementReport() {
       if (selectedCustomer.contact_number) {
         doc.text(`Contact: ${selectedCustomer.contact_number}`, 14, 46)
       }
-      doc.text(`Credit Limit: ${formatCurrency(selectedCustomer.credit_limit)}`, 14, 52)
-      doc.text(`Current Balance: ${formatCurrency(currentBalance)}`, 14, 58)
+      doc.text(`Credit Limit: ${formatCurrencyForPDF(selectedCustomer.credit_limit)}`, 14, 52)
+      doc.text(`Current Balance: ${formatCurrencyForPDF(currentBalance)}`, 14, 58)
       
       // Date range
       if (dateRange.from) {
@@ -182,11 +182,11 @@ export function CustomerStatementReport() {
         body: transactions.map(t => [
           formatDate(new Date(t.date)),
           t.description,
-          t.debit > 0 ? formatCurrency(t.debit) : '-',
-          t.credit > 0 ? formatCurrency(t.credit) : '-',
-          formatCurrency(t.balance)
+          t.debit > 0 ? formatCurrencyForPDF(t.debit) : '-',
+          t.credit > 0 ? formatCurrencyForPDF(t.credit) : '-',
+          formatCurrencyForPDF(t.balance)
         ]),
-        foot: [['', 'Total', formatCurrency(totalDebits), formatCurrency(totalCredits), formatCurrency(currentBalance)]],
+        foot: [['', 'Total', formatCurrencyForPDF(totalDebits), formatCurrencyForPDF(totalCredits), formatCurrencyForPDF(currentBalance)]],
         theme: 'striped',
         headStyles: { fillColor: [232, 137, 106], textColor: 255 }, // ts-accent
         footStyles: { fillColor: [253, 232, 223], textColor: [122, 62, 46], fontStyle: 'bold' }, // ts-soft, ts-text
@@ -267,10 +267,10 @@ export function CustomerStatementReport() {
             <button
               onClick={handleExportPDF}
               disabled={exporting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors disabled:opacity-50 shrink-0"
             >
               <Download className="w-4 h-4" />
-              {exporting ? 'Generating PDF...' : 'Export PDF'}
+              {exporting ? 'Generating...' : 'Export PDF'}
             </button>
           </div>
         )}

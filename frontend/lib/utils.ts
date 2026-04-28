@@ -15,6 +15,15 @@ export function formatCurrency(amount: number): string {
     .replace('PHP', '₱')
 }
 
+// PDF-safe currency formatter (uses PHP instead of ₱ symbol)
+export function formatCurrencyForPDF(amount: number): string {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2,
+  }).format(amount)
+}
+
 export function formatDate(dateString: string): string {
   return new Intl.DateTimeFormat('en-PH', {
     year: 'numeric',

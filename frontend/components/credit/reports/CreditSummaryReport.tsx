@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Download, CreditCard, AlertCircle, CheckCircle } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCurrencyForPDF, formatDate } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -127,9 +127,9 @@ export function CreditSummaryReport() {
       doc.setFontSize(9)
       doc.setTextColor(120, 120, 120)
       doc.text(`Total Customers: ${filteredCustomers.length}`, 14, 60)
-      doc.text(`Total Outstanding: ${formatCurrency(totalOutstanding)}`, 14, 66)
-      doc.text(`Total Overdue: ${formatCurrency(totalOverdue)}`, 14, 72)
-      doc.text(`Total Credit Limit: ${formatCurrency(totalCreditLimit)}`, 14, 78)
+      doc.text(`Total Outstanding: ${formatCurrencyForPDF(totalOutstanding)}`, 14, 66)
+      doc.text(`Total Overdue: ${formatCurrencyForPDF(totalOverdue)}`, 14, 72)
+      doc.text(`Total Credit Limit: ${formatCurrencyForPDF(totalCreditLimit)}`, 14, 78)
       
       // Customer table
       autoTable(doc, {
@@ -137,10 +137,10 @@ export function CreditSummaryReport() {
         head: [['Customer', 'Balance', 'Credit Limit', 'Available', 'Overdue', 'Status']],
         body: filteredCustomers.map(c => [
           c.name,
-          formatCurrency(c.current_balance),
-          formatCurrency(c.credit_limit),
-          formatCurrency(c.available_credit),
-          formatCurrency(c.overdue_balance),
+          formatCurrencyForPDF(c.current_balance),
+          formatCurrencyForPDF(c.credit_limit),
+          formatCurrencyForPDF(c.available_credit),
+          formatCurrencyForPDF(c.overdue_balance),
           c.is_overdue ? 'OVERDUE' : c.current_balance > 0 ? 'Active' : 'Clear'
         ]),
         theme: 'striped',

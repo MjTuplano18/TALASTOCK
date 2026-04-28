@@ -122,12 +122,16 @@ export function exportSalesReportExcel(data: SalesReportData): void {
     gcash: { count: 0, total: 0 },
     paymaya: { count: 0, total: 0 },
     bank_transfer: { count: 0, total: 0 },
+    credit: { count: 0, total: 0 },
   }
   
   sales.forEach(sale => {
     const method = sale.payment_method || 'cash'
-    paymentStats[method].count++
-    paymentStats[method].total += sale.total_amount
+    // Only count if the payment method exists in our stats object
+    if (paymentStats[method as PaymentMethod]) {
+      paymentStats[method as PaymentMethod].count++
+      paymentStats[method as PaymentMethod].total += sale.total_amount
+    }
   })
   
   const paymentData = [

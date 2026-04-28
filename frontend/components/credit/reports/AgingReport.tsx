@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Download, Clock, AlertTriangle } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatCurrencyForPDF, formatDate } from '@/lib/utils'
 import { apiFetch } from '@/lib/api-client'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -131,8 +131,8 @@ export function AgingReport() {
       doc.setFontSize(9)
       doc.setTextColor(120, 120, 120)
       doc.text(`Total Customers with Balance: ${totalCustomers}`, 14, 60)
-      doc.text(`Total Outstanding: ${formatCurrency(totalAmount)}`, 14, 66)
-      doc.text(`Total Overdue (8+ days): ${formatCurrency(overdueAmount)}`, 14, 72)
+      doc.text(`Total Outstanding: ${formatCurrencyForPDF(totalAmount)}`, 14, 66)
+      doc.text(`Total Overdue (8+ days): ${formatCurrencyForPDF(overdueAmount)}`, 14, 72)
       
       // Aging buckets table
       autoTable(doc, {
@@ -141,10 +141,10 @@ export function AgingReport() {
         body: agingData.map(bucket => [
           bucket.days,
           bucket.customer_count.toString(),
-          formatCurrency(bucket.total_amount),
+          formatCurrencyForPDF(bucket.total_amount),
           totalAmount > 0 ? `${((bucket.total_amount / totalAmount) * 100).toFixed(1)}%` : '0%'
         ]),
-        foot: [['Total', totalCustomers.toString(), formatCurrency(totalAmount), '100%']],
+        foot: [['Total', totalCustomers.toString(), formatCurrencyForPDF(totalAmount), '100%']],
         theme: 'striped',
         headStyles: { fillColor: [232, 137, 106], textColor: 255 }, // ts-accent
         footStyles: { fillColor: [253, 232, 223], textColor: [122, 62, 46], fontStyle: 'bold' }, // ts-soft, ts-text
@@ -172,7 +172,7 @@ export function AgingReport() {
             head: [['Customer', 'Amount', 'Oldest Invoice']],
             body: bucket.customers.map(c => [
               c.name,
-              formatCurrency(c.amount),
+              formatCurrencyForPDF(c.amount),
               formatDate(new Date(c.oldest_invoice_date))
             ]),
             theme: 'plain',
