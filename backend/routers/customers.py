@@ -6,6 +6,7 @@ from models.schemas import CustomerCreate, CustomerUpdate, CustomerResponse
 from lib.cache import get_cached, set_cached, invalidate
 from datetime import datetime
 
+# Customers API router - handles customer CRUD operations
 router = APIRouter(prefix="/customers", tags=["customers"])
 
 CACHE_KEY_PREFIX = "customers"
