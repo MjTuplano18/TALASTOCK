@@ -49,7 +49,7 @@ export function CustomerStatementReport() {
 
   async function fetchCustomers() {
     try {
-      const response = await apiFetch('/api/v1/customers?per_page=100')
+      const response = await apiFetch('/api/v1/customers/?per_page=100')
       if (!response.ok) throw new Error('Failed to fetch customers')
       const result = await response.json()
       // Backend returns { success, data: [...], meta }
