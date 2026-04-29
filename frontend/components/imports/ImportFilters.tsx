@@ -1,6 +1,7 @@
 'use client'
 
 import { Filter, X } from 'lucide-react'
+import { DateRangePicker, type DateRange } from '@/components/shared/DateRangePicker'
 
 interface ImportFiltersProps {
   entityType: string
@@ -23,6 +24,19 @@ export function ImportFilters({
 }: ImportFiltersProps) {
   const hasFilters = entityType || status || dateRange.start || dateRange.end
 
+  // Convert string dates to Date objects for DateRangePicker
+  const dateRangeValue: DateRange = {
+    from: dateRange.start ? new Date(dateRange.start) : null,
+    to: dateRange.end ? new Date(dateRange.end) : null,
+  }
+
+  function handleDateRangeChange(range: DateRange) {
+    onDateRangeChange({
+      start: range.from ? range.from.toISOString() : '',
+      end: range.to ? range.to.toISOString() : '',
+    })
+  }
+
   return (
     <div className="bg-white rounded-xl border border-[#F2C4B0] p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -39,7 +53,7 @@ export function ImportFilters({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Entity Type Filter */}
         <div>
           <label className="block text-xs text-[#B89080] mb-1">Entity Type</label>
@@ -71,25 +85,12 @@ export function ImportFilters({
           </select>
         </div>
 
-        {/* Start Date Filter */}
+        {/* Date Range Filter with Calendar */}
         <div>
-          <label className="block text-xs text-[#B89080] mb-1">Start Date</label>
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-[#F2C4B0] rounded-lg text-[#7A3E2E] focus:border-[#E8896A] focus:ring-1 focus:ring-[#E8896A] outline-none"
-          />
-        </div>
-
-        {/* End Date Filter */}
-        <div>
-          <label className="block text-xs text-[#B89080] mb-1">End Date</label>
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
-            className="w-full px-3 py-2 text-sm border border-[#F2C4B0] rounded-lg text-[#7A3E2E] focus:border-[#E8896A] focus:ring-1 focus:ring-[#E8896A] outline-none"
+          <label className="block text-xs text-[#B89080] mb-1">Date Range</label>
+          <DateRangePicker
+            value={dateRangeValue}
+            onChange={handleDateRangeChange}
           />
         </div>
       </div>
