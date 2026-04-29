@@ -265,3 +265,122 @@ class PaymentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============================================================================
+# Import History & ETL Schemas
+# ============================================================================
+
+class ImportTemplateCreate(BaseModel):
+    name: str
+    entity_type: str
+    column_mappings: dict
+    is_default: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Template name cannot be empty")
+        return v.strip()
+
+    @field_validator("entity_type")
+    @classmethod
+    def entity_type_valid(cls, v: str) -> str:
+        valid_types = ["products", "sales", "inventory", "customers"]
+        if v.lower() not in valid_types:
+            raise ValueError(f"Entity type must be one of: {', '.join(valid_types)}")
+        return v.lower()
+
+
+class ImportTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    column_mappings: Optional[dict] = None
+    is_default: Optional[bool] = None
+
+
+class ImportTemplateResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    entity_type: str
+    column_mappings: dict
+    is_default: bool
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class ImportHistoryCreate(BaseModel):
+    file_name: str
+    entity_type: str
+    status: str
+    total_rows: int
+    successful_rows: int
+    failed_rows: int
+    errors: List[dict] = []
+    warnings: List[dict] = []
+    processing_time_ms: Optional[int] = None
+
+    @field_validator("entity_type")
+    @classmethod
+    def entity_type_valid(cls, v: str) -> str:
+        valid_types = ["products", "sales", "inventory", "customers"]
+        if v.lower() not in valid_types:
+            raise ValueError(f"Entity type must be one of: {', '.join(valid_types)}")
+        return v.lower()
+
+    @field_validator("status")
+    @classmethod
+    def status_valid(cls, v: str) -> str:
+        valid_statuses = ["success", "failed", "partial"]
+        if v.lower() not in valid_statuses:
+            raise ValueError(f"Status must be one of: {', '.join(valid_statuses)}")
+        return v.lower()
+
+
+class ImportHistoryResponse(BaseModel):
+    id: str
+    user_id: str
+    file_name: str
+    entity_type: str
+    status: str
+    total_rows: int
+    successful_rows: int
+    failed_rows: int
+    errors: List[dict]
+    warnings: List[dict]
+    processing_time_ms: Optional[int]
+    can_rollback: bool
+    rolled_back_at: Optional[str]
+    rolled_back_by: Optional[str]
+    created_at: str
+    quality_score: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ImportStatistics(BaseModel):
+    total_imports: int
+    successful_imports: int
+    failed_imports: int
+    partial_imports: int
+    success_rate: float
+    total_rows_processed: int
+    avg_processing_time_ms: float
+    avg_quality_score: float
+
+
+class RollbackRequest(BaseModel):
+    import_id: str
+    reason: Optional[str] = None
+
+    @field_validator("import_id")
+    @classmethod
+    def import_id_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Import ID cannot be empty")
+        return v.strip()
