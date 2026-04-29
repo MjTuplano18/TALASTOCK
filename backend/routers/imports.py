@@ -21,7 +21,6 @@ from models.schemas import (
     ImportStatistics,
     RollbackRequest,
 )
-from lib.cache import cache_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -171,7 +170,6 @@ async def create_import_history(
 
 
 @router.get("/statistics", response_model=APIResponse)
-@cache_response(ttl=300)  # Cache for 5 minutes
 async def get_import_statistics(
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
     db=Depends(get_supabase),
