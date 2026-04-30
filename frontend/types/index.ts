@@ -690,3 +690,133 @@ export const reportGenerationSchema = z.object({
   message: 'Start date and end date are required for sales and profit & loss reports',
   path: ['start_date'],
 })
+
+// ============================================================================
+// Import History & ETL Types
+// ============================================================================
+
+export interface ImportHistory {
+  id: string
+  user_id: string
+  file_name: string
+  entity_type: 'products' | 'sales' | 'inventory' | 'customers'
+  status: 'success' | 'failed' | 'partial'
+  total_rows: number
+  successful_rows: number
+  failed_rows: number
+  errors: ImportError[]
+  warnings: ImportWarning[]
+  processing_time_ms: number | null
+  can_rollback: boolean
+  has_conflicts?: boolean
+  rolled_back_at: string | null
+  rolled_back_by: string | null
+  created_at: string
+  quality_score?: number
+  snapshot_count?: number
+}
+
+export interface ImportError {
+  row: number
+  field: string
+  message: string
+  value?: any
+}
+
+export interface ImportWarning {
+  row: number
+  message: string
+  field?: string
+}
+
+export interface ImportStatistics {
+  total_imports: number
+  successful_imports: number
+  failed_imports: number
+  partial_imports: number
+  success_rate: number
+  total_rows_processed: number
+  avg_processing_time_ms: number
+  avg_quality_score: number
+}
+
+export interface ImportTemplate {
+  id: string
+  user_id: string
+  name: string
+  entity_type: 'products' | 'sales' | 'inventory' | 'customers'
+  column_mappings: Record<string, string>
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ImportTemplateCreate {
+  name: string
+  entity_type: 'products' | 'sales' | 'inventory' | 'customers'
+  column_mappings: Record<string, string>
+  is_default?: boolean
+}
+
+export interface ImportTemplateUpdate {
+  name?: string
+  column_mappings?: Record<string, string>
+  is_default?: boolean
+}
+
+export interface RollbackRequest {
+  import_id: string
+  reason?: string
+}
+
+export interface ImportPreview {
+  valid_rows: any[]
+  invalid_rows: Array<{
+    row_number: number
+    data: any
+    errors: ImportError[]
+  }>
+  warnings: ImportWarning[]
+  summary: {
+    total_rows: number
+    valid_rows: number
+    invalid_rows: number
+    warnings_count: number
+  }
+}
+
+// Helper function to calculate import quality score
+export function calculateImportQualityScore(importRecord: ImportHistory): number {
+  if (importRecord.total_rows === 0) return 0
+  
+  // Base score: percentage of successful rows
+  let score = (importRecord.successful_rows / importRecord.total_rows) * 100
+  
+  // Deduct points for warnings (max 10 points)
+  const warningsDeduction = Math.min(importRecord.warnings.length * 2, 10)
+  score -= warningsDeduction
+  
+  // Ensure score is between 0 and 100
+  return Math.max(0, Math.min(100, score))
+}
+
+// Helper function to get status color
+export function getImportStatusColor(status: ImportHistory['status']): string {
+  switch (status) {
+    case 'success':
+      return 'text-green-600'
+    case 'failed':
+      return 'text-red-600'
+    case 'partial':
+      return 'text-yellow-600'
+    default:
+      return 'text-gray-600'
+  }
+}
+
+// Helper function to get quality score color
+export function getQualityScoreColor(score: number): string {
+  if (score >= 90) return 'text-green-600'
+  if (score >= 70) return 'text-yellow-600'
+  return 'text-red-600'
+}

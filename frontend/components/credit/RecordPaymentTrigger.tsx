@@ -109,7 +109,7 @@ export function RecordPaymentTrigger({
   if (step === 'pick') {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="border-[#F2C4B0] max-w-sm">
+        <DialogContent className="border-[#F2C4B0] w-[calc(100vw-2rem)] max-w-sm sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle className="text-[#7A3E2E]">Record Payment</DialogTitle>
           </DialogHeader>
@@ -127,18 +127,15 @@ export function RecordPaymentTrigger({
                 >
                   <option value="">Choose a customer…</option>
                   {customers.map(c => {
-                    // Format: "Name (Business) — ₱X,XXX"
-                    // Truncate business name if too long to prevent overflow
-                    let displayName = c.name
-                    if (c.business_name) {
-                      const truncatedBusiness = c.business_name.length > 20 
-                        ? c.business_name.substring(0, 20) + '...'
-                        : c.business_name
-                      displayName = `${c.name} (${truncatedBusiness})`
-                    }
-                    const balance = formatCurrency(c.current_balance)
+                    // Very short text to fit on all devices including mobile
+                    // Max 15 characters for name
+                    const displayName = c.name.length > 15 
+                      ? c.name.substring(0, 15) + '...' 
+                      : c.name
+                    // Shorter balance format
+                    const balance = `₱${(c.current_balance / 1000).toFixed(1)}k`
                     return (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={c.id} title={`${c.name}${c.business_name ? ` (${c.business_name})` : ''} — ${formatCurrency(c.current_balance)}`}>
                         {displayName} — {balance}
                       </option>
                     )

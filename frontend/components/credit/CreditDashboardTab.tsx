@@ -59,18 +59,19 @@ export function CreditDashboardTab({ refreshTrigger, startDate, endDate }: Credi
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2 sm:gap-3">
       {/* Info Banner */}
-      <div className="bg-[#FDF6F0] border border-[#F2C4B0] rounded-lg px-3 py-2 flex items-start gap-2">
+      <div className="bg-[#FDF6F0] border border-[#F2C4B0] rounded-lg px-4 py-2.5 flex items-start gap-2">
         <Info className="w-4 h-4 text-[#E8896A] shrink-0 mt-0.5" />
         <p className="text-xs text-[#7A3E2E]">
           <span className="font-medium">Note:</span> KPI metrics show current balances (not filtered by date). 
-          Charts below show data for the selected date range.
+          Credit Sales Trend, Payment Collection, and Payment Methods show data for the selected date range. 
+          Credit Utilization shows current customer balances.
         </p>
       </div>
 
       {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
         {loading ? (
           <>
             <MetricCardSkeleton />
@@ -104,7 +105,7 @@ export function CreditDashboardTab({ refreshTrigger, startDate, endDate }: Credi
       </div>
 
       {/* Charts Row 1 - Trends */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
         <ChartCard title="Credit Sales Trend">
           <CreditSalesTrendChart startDate={startDate} endDate={endDate} />
         </ChartCard>
@@ -113,8 +114,8 @@ export function CreditDashboardTab({ refreshTrigger, startDate, endDate }: Credi
         </ChartCard>
       </div>
 
-      {/* Charts Row 2 - Analytics (Working) */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      {/* Charts Row 2 - Analytics */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-3">
         <ChartCard title="Credit Utilization by Customer">
           <CreditUtilizationChart />
         </ChartCard>

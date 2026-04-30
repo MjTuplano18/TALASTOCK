@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Eye, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { Eye, FileText } from 'lucide-react'
 import { useSales } from '@/hooks/useSales'
 import { DateRangeFilter } from '@/components/shared/DateRangeFilter'
 import { SearchInput } from '@/components/shared/SearchInput'
 import { HighlightText } from '@/components/shared/HighlightText'
 import { RelativeTime } from '@/components/shared/RelativeTime'
+import { Pagination } from '@/components/shared/Pagination'
 import { useDateRangeQuery } from '@/context/DateRangeContext'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { TransactionDetailsDrawer } from '@/components/transactions/TransactionDetailsDrawer'
 import { ExportDropdown } from '@/components/shared/ExportDropdown'
 import { exportTransactionsExcel, exportTransactionsCSV } from '@/lib/export-transactions'
@@ -246,32 +247,13 @@ export default function TransactionsPage() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-[#F2C4B0]">
-                <p className="text-xs text-[#B89080]">
-                  Showing {startIndex + 1}-{Math.min(endIndex, filteredSales.length)} of {filteredSales.length}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-[#7A3E2E]" />
-                  </button>
-                  <span className="text-xs text-[#7A3E2E] px-2">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg hover:bg-[#FDE8DF] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight className="w-4 h-4 text-[#7A3E2E]" />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredSales.length}
+              pageSize={ITEMS_PER_PAGE}
+              onPageChange={setCurrentPage}
+            />
           </>
         )}
       </div>

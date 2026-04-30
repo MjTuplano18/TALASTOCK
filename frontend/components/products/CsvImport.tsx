@@ -15,18 +15,21 @@ function downloadTemplate() {
 interface CsvImportProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onImport: (products: ProductCreateWithInventory[], categoryNames: string[]) => Promise<void>
+  onImport: (products: ProductCreateWithInventory[], categoryNames: string[], fileName?: string) => Promise<{ success: number; failed: number }>
 }
 
 export function CsvImport({ open, onOpenChange, onImport }: CsvImportProps) {
   const [parsed, setParsed] = useState<ParseResult | null>(null)
   const [importing, setImporting] = useState(false)
   const [done, setDone] = useState(false)
+  const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [fileName, setFileName] = useState<string>('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   async function handleFile(file: File) {
     setParseError(null)
+    setFileName(file.name)
     try {
       const result = await parseImportFile(file)
       setParsed(result)
@@ -52,7 +55,8 @@ export function CsvImport({ open, onOpenChange, onImport }: CsvImportProps) {
         _categoryName: row.categoryName, // pass raw name for parent to resolve
       } as ProductCreateWithInventory & { _categoryName?: string }))
 
-      await onImport(products, parsed.categoryNames)
+      const result = await onImport(products, parsed.categoryNames, fileName)
+      setImportResult(result)
       setDone(true)
       setParsed(null)
     } finally {
@@ -63,7 +67,9 @@ export function CsvImport({ open, onOpenChange, onImport }: CsvImportProps) {
   function reset() {
     setParsed(null)
     setDone(false)
+    setImportResult(null)
     setParseError(null)
+    setFileName('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -221,10 +227,39 @@ export function CsvImport({ open, onOpenChange, onImport }: CsvImportProps) {
           )}
 
           {/* Success */}
-          {done && (
+          {done && importResult && (
             <div className="flex flex-col items-center py-8 gap-3">
-              <CheckCircle className="w-10 h-10 text-[#C1614A]" />
-              <p className="text-sm font-medium text-[#7A3E2E]">Import complete!</p>
+              {importResult.failed === 0 ? (
+                <>
+                  <CheckCircle className="w-10 h-10 text-[#C1614A]" />
+                  <p className="text-sm font-medium text-[#7A3E2E]">Import complete!</p>
+                  <p className="text-xs text-[#B89080]">
+                    {importResult.success} product{importResult.success !== 1 ? 's' : ''} imported successfully
+                  </p>
+                </>
+              ) : importResult.success > 0 ? (
+                <>
+                  <AlertCircle className="w-10 h-10 text-[#E8896A]" />
+                  <p className="text-sm font-medium text-[#7A3E2E]">Partial import</p>
+                  <p className="text-xs text-[#B89080]">
+                    {importResult.success} succeeded, {importResult.failed} failed
+                  </p>
+                  <p className="text-xs text-[#C05050]">
+                    Failed products may have duplicate SKUs or invalid data
+                  </p>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="w-10 h-10 text-[#C05050]" />
+                  <p className="text-sm font-medium text-[#C05050]">Import failed</p>
+                  <p className="text-xs text-[#B89080]">
+                    All {importResult.failed} products failed to import
+                  </p>
+                  <p className="text-xs text-[#C05050]">
+                    Check for duplicate SKUs or invalid data
+                  </p>
+                </>
+              )}
               <button onClick={() => onOpenChange(false)}
                 className="h-8 px-3 text-xs bg-[#E8896A] hover:bg-[#C1614A] text-white rounded-lg transition-colors">
                 Done

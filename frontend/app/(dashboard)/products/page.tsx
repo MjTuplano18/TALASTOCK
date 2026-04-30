@@ -93,7 +93,8 @@ export default function ProductsPage() {
     exportProductsToExcel(filtered, hasFilters ? 'talastock-products-filtered' : 'talastock-products')
   }
 
-  async function handleImport(products: (ProductCreateWithInventory & { _categoryName?: string })[], categoryNames: string[]) {
+  async function handleImport(products: (ProductCreateWithInventory & { _categoryName?: string })[], categoryNames: string[], fileName?: string) {
+    const startTime = Date.now()
     const categoryMap: Record<string, string> = {}
     categories.forEach(c => { categoryMap[c.name.toLowerCase()] = c.id })
     for (const name of categoryNames) {
@@ -104,16 +105,49 @@ export default function ProductsPage() {
       }
     }
     let successCount = 0, failCount = 0
+    const errors: any[] = []
+    
     for (const p of products) {
       const { _categoryName, ...productData } = p
       const resolvedCategoryId = _categoryName ? (categoryMap[_categoryName.toLowerCase()] ?? null) : null
-      const result = await createProduct({ ...productData, category_id: resolvedCategoryId }, true)
-      if (result) successCount++; else failCount++
+      try {
+        const result = await createProduct({ ...productData, category_id: resolvedCategoryId }, true)
+        if (result) successCount++
+        else {
+          failCount++
+          errors.push({ sku: p.sku, error: 'Failed to create product' })
+        }
+      } catch (error: any) {
+        failCount++
+        errors.push({ sku: p.sku, error: error.message || 'Unknown error' })
+      }
     }
+    
+    const processingTime = Date.now() - startTime
+    
+    // Record import history
+    try {
+      const { createImportHistory } = await import('@/lib/api-imports')
+      await createImportHistory({
+        file_name: fileName || 'products-import.xlsx',
+        entity_type: 'products',
+        status: failCount === 0 ? 'success' : successCount > 0 ? 'partial' : 'failed',
+        total_rows: products.length,
+        successful_rows: successCount,
+        failed_rows: failCount,
+        errors: errors,
+        warnings: [],
+        processing_time_ms: processingTime,
+      })
+    } catch (err) {
+      console.error('Failed to record import history:', err)
+    }
+    
     if (successCount > 0 && failCount === 0) toast.success(`${successCount} product${successCount > 1 ? 's' : ''} imported successfully`)
     else if (successCount > 0) toast.warning(`${successCount} imported, ${failCount} failed`)
     else toast.error('Import failed')
     await refetchCategories(); await refetch()
+    return { success: successCount, failed: failCount }
   }
 
   function openEdit(product: Product) {

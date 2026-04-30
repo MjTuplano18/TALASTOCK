@@ -48,7 +48,7 @@ export function ChartWrapper({ children, className = '', minHeight = 240 }: Char
     <div 
       ref={containerRef}
       className={`w-full ${className}`}
-      style={{ minHeight: `${minHeight}px`, height: `${minHeight}px` }}
+      style={{ height: `${minHeight}px` }}
     >
       {isReady ? children : (
         <div className="w-full h-full flex items-center justify-center">

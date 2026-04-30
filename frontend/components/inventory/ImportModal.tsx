@@ -11,6 +11,7 @@ import { parseImportFile, type ParsedRow } from '@/lib/import-parser'
 import { matchAllProducts, type MatchResult } from '@/lib/product-matcher'
 import { validateImportData, type ValidationResult } from '@/lib/import-validator'
 import { generateImportTemplate } from '@/lib/generate-import-template'
+import { createImportHistory } from '@/lib/api-imports'
 import { toast } from 'sonner'
 import type { Product, InventoryItem } from '@/types'
 
@@ -210,6 +211,7 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
     }
 
     setStep('executing')
+    const startTime = Date.now()
 
     try {
       // Filter rows to import
@@ -231,6 +233,65 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
       
       setImportResult(result)
       setStep('complete')
+      
+      // Record import history
+      const processingTime = Date.now() - startTime
+      let importHistoryId: string | null = null
+      
+      try {
+        const historyResponse = await createImportHistory({
+          file_name: file?.name || 'import.xlsx',
+          entity_type: 'inventory',
+          status: result.skipped > 0 ? 'partial' : 'success',
+          total_rows: previewRows.length,
+          successful_rows: result.imported,
+          failed_rows: result.skipped,
+          errors: validation?.errors.map(e => ({
+            row: e.rowNumber,
+            field: e.field,
+            message: e.message,
+            value: e.value,
+          })) || [],
+          warnings: validation?.warnings.map(w => ({
+            row: w.rowNumber,
+            message: w.message,
+            field: w.field,
+          })) || [],
+          processing_time_ms: processingTime,
+        })
+        
+        importHistoryId = historyResponse.id
+      } catch (historyError) {
+        console.error('Failed to record import history:', historyError)
+      }
+      
+      // Create snapshots for rollback support
+      if (importHistoryId && result.snapshots) {
+        try {
+          const { createDataSnapshot } = await import('@/lib/api-imports')
+          
+          for (const snapshot of result.snapshots) {
+            await createDataSnapshot({
+              import_id: importHistoryId,
+              entity_type: 'inventory',
+              entity_id: snapshot.productId,
+              operation: 'update',
+              old_data: {
+                quantity: snapshot.oldQuantity,
+                low_stock_threshold: snapshot.oldThreshold,
+              },
+              new_data: {
+                quantity: snapshot.newQuantity,
+                low_stock_threshold: snapshot.newThreshold,
+              },
+            })
+          }
+        } catch (snapshotError) {
+          console.error('Failed to create snapshots:', snapshotError)
+          // Don't fail the import if snapshot creation fails
+        }
+      }
+      
       toast.success(`Successfully imported ${result.imported} items${result.skipped > 0 ? `, skipped ${result.skipped}` : ''}`)
       
       // Refresh inventory
@@ -240,6 +301,29 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
       
     } catch (err: any) {
       console.error('Import error:', err)
+      
+      // Record failed import
+      const processingTime = Date.now() - startTime
+      try {
+        await createImportHistory({
+          file_name: file?.name || 'import.xlsx',
+          entity_type: 'inventory',
+          status: 'failed',
+          total_rows: previewRows.length,
+          successful_rows: 0,
+          failed_rows: previewRows.length,
+          errors: [{
+            row: 0,
+            field: 'general',
+            message: err.message || 'Import failed',
+          }],
+          warnings: [],
+          processing_time_ms: processingTime,
+        })
+      } catch (historyError) {
+        console.error('Failed to record import history:', historyError)
+      }
+      
       setError(err.message || 'Import failed')
       setStep('preview')
       toast.error(err.message || 'Import failed. Please try again.')

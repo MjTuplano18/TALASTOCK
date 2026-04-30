@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Try to import routers with error handling
 try:
-    from routers import products, inventory, sales, categories, settings, customers, credit_sales, payments, reports
+    from routers import products, inventory, sales, categories, settings, customers, credit_sales, payments, reports, imports
     logger_temp = logging.getLogger(__name__)
     logger_temp.info("All routers imported successfully")
 except ImportError as e:
@@ -101,6 +101,7 @@ app.include_router(customers.router, prefix="/api/v1")
 app.include_router(credit_sales.router, prefix="/api/v1")
 app.include_router(payments.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
+app.include_router(imports.router, prefix="/api/v1")
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
 @app.exception_handler(Exception)

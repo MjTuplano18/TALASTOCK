@@ -60,17 +60,28 @@ export function useInventory() {
     }>,
     mode: 'replace' | 'add',
     filename: string
-  ): Promise<{ imported: number; skipped: number }> {
+  ): Promise<{ imported: number; skipped: number; snapshots: Array<{productId: string; oldQuantity: number; newQuantity: number; oldThreshold: number; newThreshold: number}> }> {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
       let imported = 0
       let skipped = 0
+      const snapshots: Array<{productId: string; oldQuantity: number; newQuantity: number; oldThreshold: number; newThreshold: number}> = []
 
       // Process updates in batches
       for (const update of updates) {
         try {
+          // Get old values BEFORE updating (for snapshot)
+          const { data: oldInventory } = await supabase
+            .from('inventory')
+            .select('quantity, low_stock_threshold')
+            .eq('product_id', update.productId)
+            .single()
+
+          const oldQuantity = oldInventory?.quantity ?? 0
+          const oldThreshold = oldInventory?.low_stock_threshold ?? 10
+
           // Update inventory
           const inventoryUpdate: any = {
             updated_at: new Date().toISOString(),
@@ -120,6 +131,15 @@ export function useInventory() {
             if (movError) throw movError
           }
 
+          // Save snapshot data for rollback
+          snapshots.push({
+            productId: update.productId,
+            oldQuantity,
+            newQuantity: update.quantity ?? oldQuantity,
+            oldThreshold,
+            newThreshold: update.threshold ?? oldThreshold,
+          })
+
           imported++
         } catch (err) {
           console.error('Failed to import row:', err)
@@ -129,7 +149,7 @@ export function useInventory() {
 
       // Force refetch to get the latest data
       await fetchInventory()
-      return { imported, skipped }
+      return { imported, skipped, snapshots }
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Import failed')
     }

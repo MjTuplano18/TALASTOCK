@@ -49,11 +49,14 @@ async def get_credit_sales_trend(
         end = datetime.utcnow().date()
         start = end - timedelta(days=30)
     
+    # Add one day to end date to include the entire end date (up to 23:59:59)
+    end_inclusive = end + timedelta(days=1)
+    
     # Query credit sales
     result = db.table("credit_sales").select("created_at, amount").gte(
         "created_at", start.isoformat()
-    ).lte(
-        "created_at", end.isoformat()
+    ).lt(
+        "created_at", end_inclusive.isoformat()
     ).execute()
     
     # Group by date

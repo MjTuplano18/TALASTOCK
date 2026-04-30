@@ -19,6 +19,7 @@ import {
   Users,
   Wallet,
   ChevronDown,
+  Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { signOut } from '@/lib/auth'
@@ -34,6 +35,7 @@ const navItems = [
   { label: 'Sales',         href: '/sales',         icon: TrendingUp },
   { label: 'Transactions',  href: '/transactions',  icon: Receipt },
   { label: 'Reports',       href: '/reports',       icon: FileText },
+  { label: 'Imports',       href: '/imports',       icon: Upload },
 ]
 
 const creditSubItems = [
