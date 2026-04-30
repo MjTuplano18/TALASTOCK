@@ -217,7 +217,12 @@
   border-left: 4px solid #FF9800 !important;
 }
 
-/* Info toast */
+/* Info toast - Talastock accent color */
 [data-sonner-toast][data-type="info"] {
-  border-left: 4px solid #2196F3 !important;
+  border-left: 4px solid #E8896A !important;
+}
+
+/* Info toast icon color */
+[data-sonner-toast][data-type="info"] [data-icon] {
+  color: #E8896A !important;
 }

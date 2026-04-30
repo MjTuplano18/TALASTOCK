@@ -47,8 +47,10 @@ async function apiRequest<T>(
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }))
-    throw new Error(error.message || `HTTP ${response.status}`)
+    const error = await response.json().catch(() => ({ detail: 'Request failed', message: 'Request failed' }))
+    // FastAPI returns errors in 'detail' field, but also support 'message'
+    const errorMessage = error.detail || error.message || `HTTP ${response.status}`
+    throw new Error(errorMessage)
   }
 
   const data = await response.json()
@@ -171,5 +173,23 @@ export async function updateImportTemplate(
 export async function deleteImportTemplate(templateId: string): Promise<void> {
   return apiRequest(`/api/v1/imports/templates/${templateId}`, {
     method: 'DELETE',
+  })
+}
+
+// ============================================================================
+// Data Snapshot API
+// ============================================================================
+
+export async function createDataSnapshot(data: {
+  import_id: string
+  entity_type: string
+  entity_id: string
+  operation: 'insert' | 'update' | 'delete'
+  old_data?: any
+  new_data?: any
+}): Promise<void> {
+  return apiRequest('/api/v1/imports/snapshots', {
+    method: 'POST',
+    body: JSON.stringify(data),
   })
 }

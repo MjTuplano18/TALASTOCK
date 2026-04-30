@@ -708,6 +708,7 @@ export interface ImportHistory {
   warnings: ImportWarning[]
   processing_time_ms: number | null
   can_rollback: boolean
+  has_conflicts?: boolean
   rolled_back_at: string | null
   rolled_back_by: string | null
   created_at: string

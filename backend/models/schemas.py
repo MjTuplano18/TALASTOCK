@@ -384,3 +384,19 @@ class RollbackRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("Import ID cannot be empty")
         return v.strip()
+
+
+class DataSnapshotCreate(BaseModel):
+    import_id: str
+    entity_type: str
+    entity_id: str
+    operation: str  # 'insert', 'update', 'delete'
+    old_data: Optional[dict] = None
+    new_data: Optional[dict] = None
+
+    @field_validator("operation")
+    @classmethod
+    def validate_operation(cls, v: str) -> str:
+        if v not in ['insert', 'update', 'delete']:
+            raise ValueError("Operation must be 'insert', 'update', or 'delete'")
+        return v

@@ -60,6 +60,12 @@ export function PaymentMethodsChart({ startDate, endDate }: PaymentMethodsChartP
 
       if (error) throw error
 
+      // If no payments found, return empty array
+      if (!payments || payments.length === 0) {
+        setData([])
+        return
+      }
+
       // Group by payment method
       const methodMap: Record<string, { amount: number; count: number }> = {}
 

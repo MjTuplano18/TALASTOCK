@@ -20,7 +20,9 @@ from models.schemas import (
     ImportTemplateResponse,
     ImportStatistics,
     RollbackRequest,
+    DataSnapshotCreate,
 )
+# Note: cache_response decorator removed - not implemented in lib.cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -45,7 +47,7 @@ async def get_import_history(
     Get import history with optional filters
     """
     try:
-        query = db.table("import_history").select("*").eq("user_id", user.id)
+        query = db.table("import_history").select("*").eq("user_id", user["id"])
         
         if entity_type:
             query = query.eq("entity_type", entity_type)
@@ -104,7 +106,7 @@ async def get_import_details(
     """
     try:
         # Get import record
-        import_result = db.table("import_history").select("*").eq("id", import_id).eq("user_id", user.id).execute()
+        import_result = db.table("import_history").select("*").eq("id", import_id).eq("user_id", user["id"]).execute()
         
         if not import_result.data:
             raise HTTPException(status_code=404, detail="Import not found")
@@ -145,7 +147,7 @@ async def create_import_history(
     """
     try:
         import_data = {
-            "user_id": user.id,
+            "user_id": user["id"],
             "file_name": payload.file_name,
             "entity_type": payload.entity_type,
             "status": payload.status,
@@ -188,7 +190,7 @@ async def get_import_statistics(
             {
                 "p_start_date": start_date.isoformat(),
                 "p_end_date": end_date.isoformat(),
-                "p_user_id": user.id,
+                "p_user_id": user["id"],
             }
         ).execute()
         
@@ -237,7 +239,7 @@ async def rollback_import(
     """
     try:
         # Get import record
-        import_result = db.table("import_history").select("*").eq("id", payload.import_id).eq("user_id", user.id).execute()
+        import_result = db.table("import_history").select("*").eq("id", payload.import_id).eq("user_id", user["id"]).execute()
         
         if not import_result.data:
             raise HTTPException(status_code=404, detail="Import not found")
@@ -250,11 +252,50 @@ async def rollback_import(
         if import_record["rolled_back_at"]:
             raise HTTPException(status_code=400, detail="This import has already been rolled back")
         
+        # Check for conflicts (products modified after this import)
+        if import_record.get("has_conflicts"):
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot rollback: Products from this import have been modified by newer operations. Rolling back would cause data inconsistency."
+            )
+        
+        # Additional safety check: verify no products were modified after import
+        # Only run if the function exists (migration has been applied)
+        try:
+            conflict_check = db.rpc(
+                "can_safely_rollback_import",
+                {"p_import_id": payload.import_id}
+            ).execute()
+            
+            if conflict_check.data and len(conflict_check.data) > 0:
+                result = conflict_check.data[0]
+                if not result.get("can_rollback", True):  # Default to True if function doesn't exist
+                    conflicts = result.get("conflicts", [])
+                    conflict_count = result.get("conflict_count", 0)
+                    
+                    # Mark import as having conflicts
+                    db.table("import_history").update({
+                        "has_conflicts": True,
+                        "can_rollback": False,
+                    }).eq("id", payload.import_id).execute()
+                    
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Cannot rollback: {conflict_count} product(s) have been modified since this import. Rolling back would overwrite newer data."
+                    )
+        except Exception as e:
+            # If the function doesn't exist yet (migration not run), log and continue
+            logger.warning(f"Conflict detection function not available: {e}")
+            # Continue with rollback if no has_conflicts flag is set
+        
         # Get all snapshots for this import
         snapshots_result = db.table("import_data_snapshot").select("*").eq("import_id", payload.import_id).execute()
         
-        if not snapshots_result.data:
-            raise HTTPException(status_code=400, detail="No snapshots found for this import")
+        if not snapshots_result.data or len(snapshots_result.data) == 0:
+            raise HTTPException(
+                status_code=400, 
+                detail="No snapshots found for this import. Rollback is not available because data snapshots were not created during import."
+            )
         
         # Rollback each snapshot in reverse order
         rollback_count = 0
@@ -266,21 +307,47 @@ async def rollback_import(
                 entity_id = snapshot["entity_id"]
                 operation = snapshot["operation"]
                 old_data = snapshot["old_data"]
+                new_data = snapshot["new_data"]
                 
                 if operation == "insert":
                     # Delete the inserted record
-                    db.table(entity_type).delete().eq("id", entity_id).execute()
+                    result = db.table(entity_type).delete().eq("product_id", entity_id).execute()
+                    logger.info(f"Rollback delete: {result}")
                 elif operation == "update":
-                    # Restore old data
+                    # Restore old data - for inventory, use product_id
                     if old_data:
-                        db.table(entity_type).update(old_data).eq("id", entity_id).execute()
+                        logger.info(f"Rollback update: product_id={entity_id}, old_data={old_data}")
+                        
+                        # Add updated_at timestamp to trigger the update
+                        update_data = {**old_data, "updated_at": datetime.utcnow().isoformat()}
+                        
+                        result = db.table(entity_type).update(update_data).eq("product_id", entity_id).execute()
+                        logger.info(f"Rollback update result: {result}")
+                        
+                        # Create stock movement record for rollback
+                        if entity_type == "inventory" and "quantity" in old_data and "quantity" in new_data:
+                            quantity_change = old_data["quantity"] - new_data["quantity"]
+                            if quantity_change != 0:
+                                try:
+                                    db.table("stock_movements").insert({
+                                        "product_id": entity_id,
+                                        "type": "rollback",
+                                        "quantity": quantity_change,
+                                        "note": f"Rollback of import {payload.import_id}: {payload.reason or 'No reason provided'}",
+                                        "created_by": user["id"],
+                                        "import_history_id": payload.import_id,
+                                    }).execute()
+                                except Exception as sm_error:
+                                    logger.error(f"Failed to create stock movement for rollback: {sm_error}")
                 elif operation == "delete":
                     # Re-insert deleted record
                     if old_data:
-                        db.table(entity_type).insert(old_data).execute()
+                        result = db.table(entity_type).insert(old_data).execute()
+                        logger.info(f"Rollback insert: {result}")
                 
                 rollback_count += 1
             except Exception as e:
+                logger.error(f"Rollback error for snapshot {snapshot['id']}: {e}", exc_info=True)
                 errors.append({
                     "snapshot_id": snapshot["id"],
                     "entity_id": entity_id,
@@ -290,7 +357,7 @@ async def rollback_import(
         # Mark import as rolled back
         db.table("import_history").update({
             "rolled_back_at": datetime.utcnow().isoformat(),
-            "rolled_back_by": user.id,
+            "rolled_back_by": user["id"],
             "can_rollback": False,
         }).eq("id", payload.import_id).execute()
         
@@ -311,6 +378,41 @@ async def rollback_import(
 
 
 # ============================================================================
+# Data Snapshot Endpoints
+# ============================================================================
+
+@router.post("/snapshots", response_model=APIResponse, status_code=201)
+async def create_data_snapshot(
+    payload: DataSnapshotCreate,
+    db=Depends(get_supabase),
+    user=Depends(verify_token),
+):
+    """
+    Create a data snapshot for rollback support
+    """
+    try:
+        snapshot_data = {
+            "import_id": payload.import_id,
+            "entity_type": payload.entity_type,
+            "entity_id": payload.entity_id,
+            "operation": payload.operation,
+            "old_data": payload.old_data,
+            "new_data": payload.new_data,
+        }
+        
+        result = db.table("import_data_snapshot").insert(snapshot_data).execute()
+        
+        return {
+            "success": True,
+            "data": result.data[0],
+            "message": "Snapshot created successfully",
+        }
+    except Exception as e:
+        logger.error(f"Failed to create snapshot: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # Import Templates Endpoints
 # ============================================================================
 
@@ -324,7 +426,7 @@ async def get_import_templates(
     Get all import templates for the current user
     """
     try:
-        query = db.table("import_templates").select("*").eq("user_id", user.id)
+        query = db.table("import_templates").select("*").eq("user_id", user["id"])
         
         if entity_type:
             query = query.eq("entity_type", entity_type)
@@ -353,10 +455,10 @@ async def create_import_template(
     try:
         # If this is set as default, unset other defaults for this entity type
         if payload.is_default:
-            db.table("import_templates").update({"is_default": False}).eq("user_id", user.id).eq("entity_type", payload.entity_type).execute()
+            db.table("import_templates").update({"is_default": False}).eq("user_id", user["id"]).eq("entity_type", payload.entity_type).execute()
         
         template_data = {
-            "user_id": user.id,
+            "user_id": user["id"],
             "name": payload.name,
             "entity_type": payload.entity_type,
             "column_mappings": payload.column_mappings,
@@ -387,7 +489,7 @@ async def update_import_template(
     """
     try:
         # Check if template exists and belongs to user
-        existing = db.table("import_templates").select("*").eq("id", template_id).eq("user_id", user.id).execute()
+        existing = db.table("import_templates").select("*").eq("id", template_id).eq("user_id", user["id"]).execute()
         
         if not existing.data:
             raise HTTPException(status_code=404, detail="Template not found")
@@ -402,7 +504,7 @@ async def update_import_template(
             # If setting as default, unset other defaults
             if payload.is_default:
                 entity_type = existing.data[0]["entity_type"]
-                db.table("import_templates").update({"is_default": False}).eq("user_id", user.id).eq("entity_type", entity_type).neq("id", template_id).execute()
+                db.table("import_templates").update({"is_default": False}).eq("user_id", user["id"]).eq("entity_type", entity_type).neq("id", template_id).execute()
         
         update_data["updated_at"] = datetime.utcnow().isoformat()
         
@@ -431,7 +533,7 @@ async def delete_import_template(
     """
     try:
         # Check if template exists and belongs to user
-        existing = db.table("import_templates").select("id").eq("id", template_id).eq("user_id", user.id).execute()
+        existing = db.table("import_templates").select("id").eq("id", template_id).eq("user_id", user["id"]).execute()
         
         if not existing.data:
             raise HTTPException(status_code=404, detail="Template not found")

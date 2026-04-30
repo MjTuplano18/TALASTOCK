@@ -35,9 +35,29 @@ export function ImportDetailsModal({
       })
 
       toast.success(`Successfully rolled back ${result.rollback_count} changes`)
+      toast.info('Go to Inventory page to see the restored quantities', { duration: 5000 })
       onRollbackSuccess()
     } catch (error: any) {
-      toast.error(error.message || 'Failed to rollback import')
+      console.error('Rollback error:', error)
+      
+      // Handle specific error cases
+      if (error.message?.includes('No snapshots found')) {
+        toast.error('Cannot rollback: No snapshots available', {
+          description: 'This import was created before the rollback feature was implemented. Only imports created after April 29, 2026 can be rolled back.',
+          duration: 7000,
+        })
+      } else if (error.message?.includes('modified by newer operations') || 
+          error.message?.includes('modified since this import') ||
+          error.message?.includes('have been modified')) {
+        toast.error('Cannot rollback: Products have been modified', {
+          description: 'This import cannot be rolled back because the products have been changed by newer operations. Rolling back would overwrite recent data.',
+          duration: 6000,
+        })
+      } else if (error.message?.includes('already been rolled back')) {
+        toast.error('This import has already been rolled back')
+      } else {
+        toast.error(error.message || 'Failed to rollback import')
+      }
     } finally {
       setRolling(false)
     }
@@ -235,14 +255,34 @@ export function ImportDetailsModal({
             )}
           </div>
           <div className="flex gap-2">
-            {importRecord.can_rollback && !importRecord.rolled_back_at && !showRollbackConfirm && (
-              <button
-                onClick={() => setShowRollbackConfirm(true)}
-                className="flex items-center gap-2 px-4 py-2 border border-[#F2C4B0] text-[#C05050] rounded-lg text-sm hover:bg-[#FDECEA]"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Rollback Import
-              </button>
+            {/* Show rollback for inventory imports */}
+            {importRecord.entity_type === 'inventory' && !importRecord.rolled_back_at && !showRollbackConfirm && (
+              <>
+                {importRecord.has_conflicts ? (
+                  <div className="flex items-center gap-2 text-xs text-[#B89080] italic">
+                    <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                    <span>Cannot rollback - products have been modified</span>
+                  </div>
+                ) : !importRecord.can_rollback ? (
+                  <div className="flex items-center gap-2 text-xs text-[#B89080] italic">
+                    <AlertCircle className="w-4 h-4 text-[#B89080]" />
+                    <span>Rollback not available - no snapshots found</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowRollbackConfirm(true)}
+                    className="flex items-center gap-2 px-4 py-2 border border-[#F2C4B0] text-[#C05050] rounded-lg text-sm hover:bg-[#FDECEA]"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Rollback Import
+                  </button>
+                )}
+              </>
+            )}
+            {importRecord.entity_type === 'products' && (
+              <p className="text-xs text-[#B89080] italic">
+                Product imports cannot be rolled back
+              </p>
             )}
             <button
               onClick={onClose}

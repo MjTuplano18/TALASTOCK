@@ -236,8 +236,10 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
       
       // Record import history
       const processingTime = Date.now() - startTime
+      let importHistoryId: string | null = null
+      
       try {
-        await createImportHistory({
+        const historyResponse = await createImportHistory({
           file_name: file?.name || 'import.xlsx',
           entity_type: 'inventory',
           status: result.skipped > 0 ? 'partial' : 'success',
@@ -257,9 +259,37 @@ export function ImportModal({ open, onClose, onSuccess, products, inventory, onI
           })) || [],
           processing_time_ms: processingTime,
         })
+        
+        importHistoryId = historyResponse.id
       } catch (historyError) {
         console.error('Failed to record import history:', historyError)
-        // Don't fail the import if history recording fails
+      }
+      
+      // Create snapshots for rollback support
+      if (importHistoryId && result.snapshots) {
+        try {
+          const { createDataSnapshot } = await import('@/lib/api-imports')
+          
+          for (const snapshot of result.snapshots) {
+            await createDataSnapshot({
+              import_id: importHistoryId,
+              entity_type: 'inventory',
+              entity_id: snapshot.productId,
+              operation: 'update',
+              old_data: {
+                quantity: snapshot.oldQuantity,
+                low_stock_threshold: snapshot.oldThreshold,
+              },
+              new_data: {
+                quantity: snapshot.newQuantity,
+                low_stock_threshold: snapshot.newThreshold,
+              },
+            })
+          }
+        } catch (snapshotError) {
+          console.error('Failed to create snapshots:', snapshotError)
+          // Don't fail the import if snapshot creation fails
+        }
       }
       
       toast.success(`Successfully imported ${result.imported} items${result.skipped > 0 ? `, skipped ${result.skipped}` : ''}`)
