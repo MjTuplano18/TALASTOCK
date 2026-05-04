@@ -52,11 +52,25 @@ def export_messy_csv(df, filename, output_dir='output'):
     Export messy CSV with encoding issues
     
     Simulates receiving data from legacy systems with encoding problems
+    Uses 'replace' error handling to simulate encoding issues
     """
     print(f"\n📄 Exporting messy CSV: {filename}.csv")
     
-    # Use different encoding that might cause issues
-    return export_to_csv(df, filename, output_dir, encoding='latin-1')
+    # Use latin-1 encoding with error handling to simulate encoding issues
+    # This will replace characters that can't be encoded
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    filepath = output_path / f"{filename}.csv"
+    
+    # Use errors='replace' to handle characters that can't be encoded
+    df.to_csv(filepath, index=False, encoding='latin-1', errors='replace')
+    
+    print(f"✅ Exported to {filepath}")
+    print(f"   Rows: {len(df)}, Columns: {len(df.columns)}")
+    print(f"   Note: Some characters replaced due to encoding limitations")
+    
+    return filepath
 
 
 if __name__ == "__main__":

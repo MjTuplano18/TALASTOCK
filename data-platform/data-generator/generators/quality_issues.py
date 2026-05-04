@@ -108,6 +108,9 @@ def introduce_wrong_types(df, numeric_columns, rate=WRONG_TYPE_RATE):
     
     for column in numeric_columns:
         if column in df.columns:
+            # Convert column to object type first to allow mixed types
+            df[column] = df[column].astype(object)
+            
             # Randomly select rows
             wrong_indices = random.sample(range(num_rows), 
                                         min(num_wrong, num_rows))
@@ -168,7 +171,10 @@ def introduce_invalid_values(df, rate=INVALID_VALUE_RATE):
         invalid_indices = random.sample(range(num_rows), 
                                       min(num_invalid, num_rows))
         for idx in invalid_indices:
-            df.at[idx, 'quantity'] = -abs(df.at[idx, 'quantity'])
+            value = df.at[idx, 'quantity']
+            # Only apply to numeric values
+            if pd.notna(value) and isinstance(value, (int, float)):
+                df.at[idx, 'quantity'] = -abs(value)
         print(f"   quantity: {len(invalid_indices)} negative values")
     
     # Zero prices
@@ -176,7 +182,10 @@ def introduce_invalid_values(df, rate=INVALID_VALUE_RATE):
         invalid_indices = random.sample(range(num_rows), 
                                       min(num_invalid, num_rows))
         for idx in invalid_indices:
-            df.at[idx, 'unit_price'] = 0.0
+            value = df.at[idx, 'unit_price']
+            # Only apply to numeric values
+            if pd.notna(value) and isinstance(value, (int, float)):
+                df.at[idx, 'unit_price'] = 0.0
         print(f"   unit_price: {len(invalid_indices)} zero values")
     
     # Future dates (if timestamp column exists)
@@ -244,14 +253,15 @@ def apply_all_quality_issues(df, issue_type='sales'):
         # Duplicates
         df = introduce_duplicates(df, rate=DUPLICATE_RATE)
         
-        # Wrong types in numeric columns
+        # IMPORTANT: Apply invalid values BEFORE wrong types
+        # This ensures we're working with numeric values
+        df = introduce_invalid_values(df, rate=INVALID_VALUE_RATE)
+        
+        # Wrong types in numeric columns (do this last)
         df = introduce_wrong_types(df,
             numeric_columns=['quantity', 'unit_price', 'total_amount'],
             rate=WRONG_TYPE_RATE
         )
-        
-        # Invalid values
-        df = introduce_invalid_values(df, rate=INVALID_VALUE_RATE)
         
     elif issue_type == 'products':
         # Missing values
